@@ -1,11 +1,20 @@
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const serverRoot = resolve(currentDir, '../..');
+const serverEnvPath = resolve(serverRoot, '.env');
+const workspaceEnvPath = resolve(serverRoot, '..', '.env');
 
-dotenv.config({ path: resolve(serverRoot, '.env') });
+const envPath = fs.existsSync(serverEnvPath)
+  ? serverEnvPath
+  : fs.existsSync(workspaceEnvPath)
+  ? workspaceEnvPath
+  : serverEnvPath;
+
+dotenv.config({ path: envPath });
 
 export const env = {
   port: Number(process.env.PORT || 4000),

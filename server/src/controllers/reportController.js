@@ -10,7 +10,14 @@ export const chairmanDashboard = asyncHandler(async (_req, res) => {
 });
 
 export const memberDashboard = asyncHandler(async (req, res) => {
-  res.json(await reportService.memberDashboard(req.user.member_id));
+  // Fixed: use memberId (camelCase) instead of member_id (snake_case)
+  const memberId = req.user.memberId || req.user.member_id;
+  
+  if (!memberId) {
+    return res.status(400).json({ message: 'Member ID not found in user session' });
+  }
+  
+  res.json(await reportService.memberDashboard(memberId));
 });
 
 export const analytics = asyncHandler(async (_req, res) => {

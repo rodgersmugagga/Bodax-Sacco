@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/Button.jsx';
 import FormField from '../../components/FormField.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function Login() {
-  const [identifier, setIdentifier] = useState('treasurer@bodax.test');
-  const [password, setPassword] = useState('password123');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -34,11 +34,14 @@ export default function Login() {
           <span>Mbarara Boda Boda savings and loans</span>
         </div>
         {error && <p className="alert">{error}</p>}
-        <FormField label="Phone number or email" value={identifier} onChange={(event) => setIdentifier(event.target.value)} />
-        <FormField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        <FormField label="Phone number or email" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required />
+        <FormField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
         <Button type="submit" disabled={loading}>
           {loading ? 'Signing in...' : 'Sign in'}
         </Button>
+        <p className="secondary-action">
+          New here? <Link to="/signup">Create an account</Link>
+        </p>
       </form>
     </main>
   );

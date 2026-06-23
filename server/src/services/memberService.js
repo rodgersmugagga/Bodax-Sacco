@@ -61,7 +61,7 @@ export async function createMember(payload) {
 
     const member = rows[0];
     if (payload.password) {
-      const user = await setMemberCredentials(member.id, payload.password, client);
+      const user = await setMemberCredentials(member.id, payload.password, client, payload.email);
       return { ...member, user_id: user.id };
     }
 
@@ -97,7 +97,7 @@ export async function updateMember(id, payload) {
   return rows[0];
 }
 
-export async function setMemberCredentials(memberId, password, db = query) {
+export async function setMemberCredentials(memberId, password, db = query, email) {
   const runner = typeof db === 'function' ? { query: db } : db;
   const memberResult = await runner.query('SELECT * FROM members WHERE id = $1', [memberId]);
   const member = memberResult.rows[0];
@@ -120,11 +120,12 @@ export async function setMemberCredentials(memberId, password, db = query) {
     return updated.rows[0];
   }
 
+  const userEmail = email?.trim() || memberLoginEmail(member.phone_number);
   const created = await runner.query(
     `INSERT INTO users (role_id, email, password_hash, is_active)
      VALUES ($1, $2, $3, TRUE)
      RETURNING id, email, is_active`,
-    [role.id, memberLoginEmail(member.phone_number), passwordHash],
+    [role.id, userEmail, passwordHash],
   );
 
   await runner.query('UPDATE members SET user_id = $2, updated_at = NOW() WHERE id = $1', [

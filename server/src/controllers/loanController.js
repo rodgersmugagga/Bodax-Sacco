@@ -13,3 +13,33 @@ export const listLoans = asyncHandler(async (req, res) => {
   const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : req.query.member_id;
   res.json(await loanService.listLoans({ memberId, status: req.query.status }));
 });
+
+export const checkEligibility = asyncHandler(async (req, res) => {
+  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : req.query.member_id;
+  const requestedAmount = req.query.amount ? Number(req.query.amount) : null;
+  res.json(await loanService.checkLoanEligibility(memberId, requestedAmount));
+});
+
+export const createLoanRequest = asyncHandler(async (req, res) => {
+  const payload =
+    req.user.role_code === 'MEMBER'
+      ? { ...req.validated.body, member_id: req.user.member_id }
+      : req.validated.body;
+  res.status(201).json(await loanService.createLoanRequest(payload));
+});
+
+export const listLoanRequests = asyncHandler(async (req, res) => {
+  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : req.query.member_id;
+  res.json(await loanService.listLoanRequests({ status: req.query.status, memberId }));
+});
+
+export const reviewLoanRequest = asyncHandler(async (req, res) => {
+  res.json(
+    await loanService.reviewLoanRequest(
+      req.validated.params.id,
+      req.validated.body.action,
+      req.user.id,
+      req.validated.body.notes,
+    ),
+  );
+});

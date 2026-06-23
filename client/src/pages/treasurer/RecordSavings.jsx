@@ -17,7 +17,7 @@ export default function RecordSavings() {
     event.preventDefault();
     await api.post('/savings', form);
     setMessage('Savings recorded successfully');
-    setForm((current) => ({ ...current, amount: '', notes: '' }));
+    setForm((current) => ({ ...current, amount: '', notes: '', member_id: '' }));
   }
 
   return (

@@ -17,13 +17,21 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
+  async function register(payload) {
+    const { data } = await api.post('/auth/signup', payload);
+    localStorage.setItem('bodax_token', data.token);
+    localStorage.setItem('bodax_user', JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
+  }
+
   function logout() {
     localStorage.removeItem('bodax_token');
     localStorage.removeItem('bodax_user');
     setUser(null);
   }
 
-  const value = useMemo(() => ({ user, login, logout }), [user]);
+  const value = useMemo(() => ({ user, login, logout, register }), [user]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
