@@ -31,3 +31,7 @@ export const analytics = asyncHandler(async (_req, res) => {
 
   res.json({ topSavers, defaulters, trend, income, expenditure });
 });
+
+export const overdueLoans = asyncHandler(async (_req, res) => {
+  res.json(await reportService.overdueLoans());
+});

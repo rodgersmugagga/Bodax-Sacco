@@ -170,3 +170,22 @@ export async function expenditureSummary() {
   );
   return rows[0];
 }
+
+export async function overdueLoans() {
+  const { rows } = await query(
+    `SELECT
+       m.full_name,
+       m.member_number,
+       l.due_date,
+       CURRENT_DATE - l.due_date::date AS days_overdue,
+       GREATEST(l.total_payable - COALESCE(SUM(r.amount), 0), 0) AS amount_overdue
+     FROM loans l
+     JOIN members m ON m.id = l.member_id
+     LEFT JOIN loan_repayments r ON r.loan_id = l.id
+     WHERE l.status = 'overdue' OR (l.status = 'active' AND l.due_date < CURRENT_DATE)
+     GROUP BY l.id, m.full_name, m.member_number, l.due_date
+     HAVING GREATEST(l.total_payable - COALESCE(SUM(r.amount), 0), 0) > 0
+     ORDER BY days_overdue DESC`,
+  );
+  return rows;
+}
