@@ -138,7 +138,12 @@ export async function listLoanRequests({ status, memberId } = {}) {
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const { rows } = await query(
-    `SELECT lr.*, m.full_name, m.member_number
+    `SELECT lr.*, m.full_name, m.member_number,
+            COALESCE(
+              (SELECT SUM(s.amount) FROM savings_transactions s
+               WHERE s.member_id = lr.member_id AND s.confirmed = true),
+              0
+            ) AS total_savings
      FROM loan_requests lr
      JOIN members m ON m.id = lr.member_id
      ${where}
