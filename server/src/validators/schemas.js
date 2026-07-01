@@ -20,6 +20,7 @@ export const memberSchema = z.object({
     member_number: z.string().min(2),
     full_name: z.string().min(2),
     phone_number: z.string().min(7),
+    email: z.string().email().optional(),
     national_id: z.string().optional(),
     stage: z.string().min(2),
     next_of_kin: z.string().optional(),
@@ -51,12 +52,27 @@ export const changePasswordSchema = z.object({
   }),
 });
 
+export const signupSchema = z.object({
+  body: z.object({
+    member_number: z.string().min(2),
+    full_name: z.string().min(2),
+    phone_number: z.string().min(7),
+    email: z.string().email().optional(),
+    password: z.string().min(6),
+    stage: z.string().min(2),
+    national_id: z.string().optional(),
+    next_of_kin: z.string().optional(),
+    next_of_kin_phone: z.string().optional(),
+  }),
+});
+
 export const savingSchema = z.object({
   body: z.object({
     member_id: uuid,
     amount: money,
     transaction_date: date.optional(),
     notes: z.string().optional(),
+    confirmed: z.boolean().optional(),
   }),
 });
 
@@ -78,6 +94,24 @@ export const repaymentSchema = z.object({
     amount: money,
     payment_date: date.optional(),
     notes: z.string().optional(),
+  }),
+});
+
+export const loanReviewSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({
+    action: z.enum(['approve', 'reject']),
+    notes: z.string().optional(),
+  }),
+});
+
+export const loanRequestSchema = z.object({
+  body: z.object({
+    member_id: uuid.optional(),
+    requested_amount: money,
+    purpose: z.string().optional(),
+    installment_count: z.coerce.number().int().positive().optional(),
+    due_date: date,
   }),
 });
 

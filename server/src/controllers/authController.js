@@ -1,10 +1,15 @@
-import { changePassword, login } from '../services/authService.js';
+import { changePassword, login, register } from '../services/authService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const loginController = asyncHandler(async (req, res) => {
   const identifier = req.validated.body.identifier || req.validated.body.email;
   const result = await login(identifier, req.validated.body.password);
   res.json(result);
+});
+
+export const signupController = asyncHandler(async (req, res) => {
+  const result = await register(req.validated.body);
+  res.status(201).json(result);
 });
 
 export const meController = asyncHandler(async (req, res) => {

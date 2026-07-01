@@ -4,6 +4,7 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "build": "echo 'No build step required'",
     "dev": "nodemon src/server.js",
     "db:schema": "node src/db/applySchema.js",
     "start": "node src/server.js"

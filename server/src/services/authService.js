@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { query } from '../config/db.js';
 import { AppError } from '../utils/AppError.js';
+import * as memberService from './memberService.js';
 
 const userSelect = `
   SELECT u.id, u.email, u.password_hash, u.is_active, r.code AS role_code, r.name AS role_name,
@@ -47,6 +48,12 @@ export async function login(identifier, password) {
 
   delete user.password_hash;
   return { token, user };
+}
+
+export async function register(payload) {
+  await memberService.createMember(payload);
+  const identifier = payload.email?.trim() || payload.phone_number.trim();
+  return login(identifier, payload.password);
 }
 
 export async function changePassword(userId, currentPassword, newPassword) {

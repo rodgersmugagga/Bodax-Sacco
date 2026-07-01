@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout.jsx';
 import ProtectedRoute from './layouts/ProtectedRoute.jsx';
 import Login from './pages/auth/Login.jsx';
+import Signup from './pages/auth/Signup.jsx';
 import ChairmanAnalytics from './pages/chairman/Analytics.jsx';
 import ChairmanDashboard from './pages/chairman/Dashboard.jsx';
 import ChairmanReports from './pages/chairman/Reports.jsx';
@@ -13,6 +14,8 @@ import TreasurerDashboard from './pages/treasurer/Dashboard.jsx';
 import TreasurerLoans from './pages/treasurer/Loans.jsx';
 import Members from './pages/treasurer/Members.jsx';
 import RecordSavings from './pages/treasurer/RecordSavings.jsx';
+import ConfirmDeposits from './pages/treasurer/ConfirmDeposits.jsx';
+import ConfirmLoans from './pages/treasurer/ConfirmLoans.jsx';
 import TreasurerReports from './pages/treasurer/Reports.jsx';
 import Withdrawals from './pages/treasurer/Withdrawals.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -29,6 +32,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route
         path="/"
         element={
@@ -43,6 +47,8 @@ export default function App() {
         <Route path="member/profile" element={<ProtectedRoute roles={['MEMBER']}><Profile /></ProtectedRoute>} />
         <Route path="treasurer/members" element={<ProtectedRoute roles={['TREASURER']}><Members /></ProtectedRoute>} />
         <Route path="treasurer/savings" element={<ProtectedRoute roles={['TREASURER']}><RecordSavings /></ProtectedRoute>} />
+        <Route path="treasurer/confirm-deposits" element={<ProtectedRoute roles={['TREASURER']}><ConfirmDeposits /></ProtectedRoute>} />
+        <Route path="treasurer/confirm-loans" element={<ProtectedRoute roles={['TREASURER']}><ConfirmLoans /></ProtectedRoute>} />
         <Route path="treasurer/loans" element={<ProtectedRoute roles={['TREASURER']}><TreasurerLoans /></ProtectedRoute>} />
         <Route path="treasurer/withdrawals" element={<ProtectedRoute roles={['TREASURER']}><Withdrawals /></ProtectedRoute>} />
         <Route path="treasurer/reports" element={<ProtectedRoute roles={['TREASURER']}><TreasurerReports /></ProtectedRoute>} />

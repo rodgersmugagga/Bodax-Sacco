@@ -10,11 +10,12 @@ const nav = {
     ['/member/profile', 'Profile', Users],
   ],
   TREASURER: [
-    ['/', 'Dashboard', Home],
+    ['/', 'Treasurer dashboard', Home],
     ['/treasurer/members', 'Members', Users],
     ['/treasurer/savings', 'Savings', WalletCards],
+    ['/treasurer/confirm-deposits', 'Confirm deposits', WalletCards],
+    ['/treasurer/confirm-loans', 'Confirm loans', CreditCard],
     ['/treasurer/loans', 'Loans', CreditCard],
-    ['/treasurer/withdrawals', 'Withdrawals', Menu],
     ['/treasurer/reports', 'Reports', BarChart3],
   ],
   CHAIRMAN: [

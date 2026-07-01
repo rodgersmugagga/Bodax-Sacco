@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS savings_transactions (
   amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0),
   transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
   notes TEXT,
+  confirmed BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -73,6 +74,25 @@ CREATE TABLE IF NOT EXISTS loan_repayments (
   amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0),
   payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
   notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS loan_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  requested_amount NUMERIC(14, 2) NOT NULL CHECK (requested_amount > 0),
+  purpose TEXT,
+  installment_count INTEGER NOT NULL DEFAULT 4 CHECK (installment_count > 0),
+  due_date DATE NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  eligibility_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (eligibility_status IN ('eligible', 'ineligible')),
+  eligibility_reason TEXT,
+  max_eligible_amount NUMERIC(14, 2),
+  reviewed_by UUID REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  loan_id UUID REFERENCES loans(id) ON DELETE SET NULL,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -119,6 +139,8 @@ CREATE INDEX IF NOT EXISTS idx_savings_member_date ON savings_transactions(membe
 CREATE INDEX IF NOT EXISTS idx_loans_status ON loans(status);
 CREATE INDEX IF NOT EXISTS idx_loans_member_status ON loans(member_id, status);
 CREATE INDEX IF NOT EXISTS idx_repayments_payment_date ON loan_repayments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_loan_requests_status ON loan_requests(status);
+CREATE INDEX IF NOT EXISTS idx_loan_requests_member ON loan_requests(member_id);
 CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON withdrawal_requests(status);
 
 INSERT INTO roles (code, name)

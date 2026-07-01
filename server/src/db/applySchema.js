@@ -12,6 +12,7 @@ const expectedTables = [
   'savings_transactions',
   'loans',
   'loan_repayments',
+  'loan_requests',
   'withdrawal_requests',
   'withdrawals',
   'reports',

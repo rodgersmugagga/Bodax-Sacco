@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { AppError } from '../utils/AppError.js';
 import { env } from './env.js';
 
 const { Pool } = pg;
@@ -28,6 +29,18 @@ function normalizeConnectionString(databaseUrl) {
   }
 }
 
+function isDbConnectivityError(error) {
+  const message = error?.message?.toString() || '';
+  return (
+    error?.code === 'ECONNREFUSED' ||
+    message.includes('ECONNREFUSED') ||
+    message.includes('ENOTFOUND') ||
+    message.includes('ETIMEDOUT') ||
+    message.includes('connect timeout') ||
+    message.includes('No connection could be made')
+  );
+}
+
 export const pool = new Pool({
   connectionString: normalizeConnectionString(env.databaseUrl),
   ssl: shouldUseSsl(env.databaseUrl) ? { rejectUnauthorized: false } : undefined,
@@ -35,11 +48,34 @@ export const pool = new Pool({
 
 export async function query(text, params = []) {
   const start = Date.now();
-  const result = await pool.query(text, params);
-  if (env.nodeEnv === 'development' && Date.now() - start > 300) {
-    console.warn(`Slow query (${Date.now() - start}ms): ${text}`);
+  try {
+    const result = await pool.query(text, params);
+    if (env.nodeEnv === 'development' && Date.now() - start > 300) {
+      console.warn(`Slow query (${Date.now() - start}ms): ${text}`);
+    }
+    return result;
+  } catch (error) {
+    const detail = error?.message || 'Unknown database error';
+    if (isDbConnectivityError(error)) {
+      throw new AppError(
+        'Database unavailable. Please verify your database connection settings and try again.',
+        503,
+        { detail },
+      );
+    }
+    if (error?.code === '23505') {
+      let message = 'A record with these details already exists.';
+      if (detail.includes('member_number')) {
+        message = 'This Member number is already registered.';
+      } else if (detail.includes('phone_number')) {
+        message = 'This Phone number is already registered.';
+      } else if (detail.includes('email')) {
+        message = 'This Email is already registered.';
+      }
+      throw new AppError(message, 400, { detail });
+    }
+    throw new AppError(`Database query failed: ${detail}`, 500, { detail });
   }
-  return result;
 }
 
 export async function transaction(callback) {
