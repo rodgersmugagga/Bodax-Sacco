@@ -3,6 +3,7 @@ import { monthStart, weekStart } from '../utils/dates.js';
 import { refreshOverdueLoans } from './loanService.js';
 
 export async function treasurerDashboard() {
+  await refreshOverdueLoans();
   const today = new Date();
   const { rows } = await query(
     `SELECT
@@ -10,7 +11,6 @@ export async function treasurerDashboard() {
        (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE transaction_date = CURRENT_DATE AND confirmed = true) AS daily_collections,
        (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE transaction_date >= $1 AND confirmed = true) AS weekly_collections,
        (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE transaction_date >= $2 AND confirmed = true) AS monthly_collections,
-       (SELECT COUNT(*)::int FROM withdrawal_requests WHERE status = 'pending') AS pending_withdrawals,
        (SELECT COUNT(*)::int FROM loan_requests WHERE status = 'pending') AS pending_loan_requests,
        (SELECT COUNT(*)::int FROM loans WHERE status = 'active') AS active_loans`,
     [weekStart(today), monthStart(today)],
@@ -19,6 +19,7 @@ export async function treasurerDashboard() {
 }
 
 export async function chairmanDashboard() {
+  await refreshOverdueLoans();
   const today = new Date();
   const { rows } = await query(
     `SELECT
@@ -158,7 +159,7 @@ export async function incomeSummary() {
     `SELECT
        (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE confirmed = true) AS savings_collected,
        (SELECT COALESCE(SUM(amount), 0) FROM loan_repayments) AS loan_repayments,
-       (SELECT COALESCE(SUM(interest_amount), 0) FROM loans) AS interest_income`,
+       (SELECT COALESCE(SUM(interest_amount), 0) FROM loans WHERE status = 'completed') AS interest_income`,
   );
   return rows[0];
 }
