@@ -142,6 +142,10 @@ CREATE INDEX IF NOT EXISTS idx_repayments_payment_date ON loan_repayments(paymen
 CREATE INDEX IF NOT EXISTS idx_loan_requests_status ON loan_requests(status);
 CREATE INDEX IF NOT EXISTS idx_loan_requests_member ON loan_requests(member_id);
 CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_status ON withdrawal_requests(status);
+CREATE INDEX IF NOT EXISTS idx_savings_member_confirmed ON savings_transactions(member_id) WHERE confirmed = true;
+CREATE INDEX IF NOT EXISTS idx_repayments_loan_id ON loan_repayments(loan_id);
+CREATE INDEX IF NOT EXISTS idx_members_status ON members(status);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_member ON withdrawals(member_id);
 
 INSERT INTO roles (code, name)
 VALUES ('MEMBER', 'Member'), ('TREASURER', 'Treasurer'), ('CHAIRMAN', 'Chairman')

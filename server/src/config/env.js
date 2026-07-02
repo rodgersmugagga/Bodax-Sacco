@@ -28,3 +28,7 @@ export const env = {
 if (!env.databaseUrl && env.nodeEnv === 'production') {
   throw new Error('DATABASE_URL is required in production');
 }
+
+if (!process.env.JWT_SECRET && env.nodeEnv === 'production') {
+  throw new Error('JWT_SECRET is required in production');
+}
