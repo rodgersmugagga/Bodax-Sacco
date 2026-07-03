@@ -13,16 +13,32 @@ function isValidUgandanPhone(value) {
   return /^(0\d{9}|\+256\d{9})$/.test(value.replace(/\s/g, ''));
 }
 
+function isValidMemberNumber(value) {
+  return /^[a-zA-Z0-9\-/]+$/.test(value);
+}
+
+function isValidFullName(value) {
+  return /^[a-zA-Z\s\-.']+$/.test(value);
+}
+
 export default function Members() {
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ member_number: '', full_name: '', phone_number: '', national_id: '', stage: DEFAULT_STAGE, next_of_kin: '', password: '' });
+  const [form, setForm] = useState({
+    member_number: '', full_name: '', phone_number: '',
+    national_id: '', stage: DEFAULT_STAGE, next_of_kin: '',
+    next_of_kin_phone: '', email: '', password: '',
+  });
   const [credentials, setCredentials] = useState({ member_id: '', password: '' });
 
   function clearForm() {
-    setForm({ member_number: '', full_name: '', phone_number: '', national_id: '', stage: DEFAULT_STAGE, next_of_kin: '', password: '' });
+    setForm({
+      member_number: '', full_name: '', phone_number: '',
+      national_id: '', stage: DEFAULT_STAGE, next_of_kin: '',
+      next_of_kin_phone: '', email: '', password: '',
+    });
   }
 
   async function load() {
@@ -38,36 +54,76 @@ export default function Members() {
     load();
   }, [search]);
 
+  function validateForm() {
+    const fields = {
+      member_number: form.member_number.trim(),
+      full_name: form.full_name.trim(),
+      phone_number: form.phone_number.trim(),
+    };
+
+    if (!fields.member_number) {
+      return 'Member number is required';
+    }
+    if (!isValidMemberNumber(fields.member_number)) {
+      return 'Member number can only contain letters, numbers, hyphens, and slashes';
+    }
+    if (fields.member_number.length < 2) {
+      return 'Member number must be at least 2 characters';
+    }
+
+    if (!fields.full_name) {
+      return 'Full name is required';
+    }
+    if (fields.full_name.length < 2) {
+      return 'Full name must be at least 2 characters';
+    }
+    if (!isValidFullName(fields.full_name)) {
+      return 'Full name can only contain letters, spaces, hyphens, dots, and apostrophes';
+    }
+
+    if (!fields.phone_number) {
+      return 'Phone number is required';
+    }
+    if (!isValidUgandanPhone(fields.phone_number)) {
+      return 'Enter a valid Ugandan phone number (e.g. 0772123456 or +256772123456)';
+    }
+
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      return 'Enter a valid email address or leave it blank';
+    }
+
+    if (form.next_of_kin_phone && !isValidUgandanPhone(form.next_of_kin_phone)) {
+      return 'Next of kin phone must be a valid Ugandan number or leave it blank';
+    }
+
+    if (form.password && form.password.length < 6) {
+      return 'Password must be at least 6 characters if provided';
+    }
+
+    return null;
+  }
+
   async function submit(event) {
     event.preventDefault();
     setError('');
     setMessage('');
 
-    const phone = form.phone_number.trim();
-    if (!isValidUgandanPhone(phone)) {
-      setError('Enter a valid Ugandan phone number (e.g. 0772123456 or +256772123456)');
-      return;
-    }
-
-    if (!form.full_name.trim() || form.full_name.trim().length < 2) {
-      setError('Full name must be at least 2 characters');
-      return;
-    }
-
-    if (!form.member_number.trim()) {
-      setError('Member number is required');
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     try {
       await api.post('/members', {
-        ...form,
         member_number: form.member_number.trim(),
         full_name: form.full_name.trim(),
-        phone_number: phone,
+        phone_number: form.phone_number.trim(),
         national_id: form.national_id.trim() || undefined,
         stage: form.stage.trim(),
         next_of_kin: form.next_of_kin.trim() || undefined,
+        next_of_kin_phone: form.next_of_kin_phone.trim() || undefined,
+        email: form.email.trim() || undefined,
         password: form.password || undefined,
       });
       setMessage('Member saved. They can log in using their phone number.');
@@ -113,13 +169,15 @@ export default function Members() {
         {message && <p className="success">{message}</p>}
         {error && <p className="error">{error}</p>}
         <form className="form-grid" onSubmit={submit}>
-          <FormField label="Member number" value={form.member_number} onChange={(e) => update('member_number', e.target.value)} required maxLength="40" />
+          <FormField label="Member number" value={form.member_number} onChange={(e) => update('member_number', e.target.value)} required maxLength="40" placeholder="e.g. BR-001" />
           <FormField label="Full name" value={form.full_name} onChange={(e) => update('full_name', e.target.value)} required minLength="2" maxLength="160" />
           <FormField label="Phone number" value={form.phone_number} onChange={(e) => update('phone_number', e.target.value)} required maxLength="30" placeholder="0772123456 or +256772123456" />
-          <FormField label="National ID" value={form.national_id} onChange={(e) => update('national_id', e.target.value)} maxLength="80" />
+          <FormField label="Email (optional)" type="email" value={form.email} onChange={(e) => update('email', e.target.value)} maxLength="255" />
+          <FormField label="National ID (optional)" value={form.national_id} onChange={(e) => update('national_id', e.target.value)} maxLength="80" />
           <FormField label="Stage" value={form.stage} onChange={(e) => update('stage', e.target.value)} required maxLength="120" />
-          <FormField label="Next of kin" value={form.next_of_kin} onChange={(e) => update('next_of_kin', e.target.value)} maxLength="160" />
-          <FormField label="Login password" type="password" value={form.password} onChange={(e) => update('password', e.target.value)} minLength="6" maxLength="128" />
+          <FormField label="Next of kin (optional)" value={form.next_of_kin} onChange={(e) => update('next_of_kin', e.target.value)} maxLength="160" />
+          <FormField label="Next of kin phone (optional)" value={form.next_of_kin_phone} onChange={(e) => update('next_of_kin_phone', e.target.value)} maxLength="30" placeholder="0772123456" />
+          <FormField label="Login password (optional)" type="password" value={form.password} onChange={(e) => update('password', e.target.value)} minLength="6" maxLength="128" />
           <Button>Save member</Button>
         </form>
       </Panel>
@@ -150,7 +208,7 @@ export default function Members() {
           <Button>Update password</Button>
         </form>
       </Panel>
-      <Panel title="Search members" action={<SearchBox value={search} onChange={setSearch} placeholder="Name, phone, number" />}>
+      <Panel title="Search members" action={<SearchBox value={search} onChange={setSearch} placeholder="Name, phone, number (min 2 chars)" />}>
         <DataTable
           rows={members}
           columns={[
