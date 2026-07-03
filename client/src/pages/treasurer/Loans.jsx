@@ -11,6 +11,7 @@ export default function TreasurerLoans() {
   const [members, setMembers] = useState([]);
   const [loans, setLoans] = useState([]);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loanForm, setLoanForm] = useState({ member_id: '', principal: '', interest_rate: 10, installment_count: 4, due_date: '' });
   const [repayment, setRepayment] = useState({ loan_id: '', amount: '' });
 
@@ -28,9 +29,17 @@ export default function TreasurerLoans() {
     load();
   }, []);
 
+  const activeLoans = loans.filter((loan) => loan.status !== 'completed');
+
+  function selectedLoan() {
+    if (!repayment.loan_id) return null;
+    return activeLoans.find((loan) => loan.id === repayment.loan_id) || null;
+  }
+
   async function issue(event) {
     event.preventDefault();
     setError('');
+    setMessage('');
 
     const principal = Number(loanForm.principal);
     if (!principal || principal < 1) {
@@ -62,6 +71,7 @@ export default function TreasurerLoans() {
         installment_count: Number(loanForm.installment_count) || 4,
         due_date: loanForm.due_date,
       });
+      setMessage('Loan issued successfully');
       setLoanForm({ member_id: '', principal: '', interest_rate: 10, installment_count: 4, due_date: '' });
       load();
     } catch (err) {
@@ -72,19 +82,28 @@ export default function TreasurerLoans() {
   async function pay(event) {
     event.preventDefault();
     setError('');
+    setMessage('');
+
+    if (!repayment.loan_id) {
+      setError('Please select a loan');
+      return;
+    }
 
     const amount = Number(repayment.amount);
     if (!amount || amount < 1) {
       setError('Repayment amount must be at least 1 UGX');
       return;
     }
-    if (!repayment.loan_id) {
-      setError('Please select a loan');
+
+    const loan = selectedLoan();
+    if (loan && Number(amount) > Number(loan.remaining_balance)) {
+      setError(`Repayment amount (${money(amount)}) exceeds remaining balance (${money(loan.remaining_balance)})`);
       return;
     }
 
     try {
       await api.post('/loans/repayments', { loan_id: repayment.loan_id, amount });
+      setMessage('Repayment recorded successfully');
       setRepayment({ loan_id: '', amount: '' });
       load();
     } catch (err) {
@@ -95,6 +114,7 @@ export default function TreasurerLoans() {
   return (
     <div className="page-stack">
       <h1>Loans</h1>
+      {message && <p className="success">{message}</p>}
       {error && <p className="error">{error}</p>}
       <Panel title="Issue loan">
         <form className="form-grid" onSubmit={issue}>
@@ -112,12 +132,18 @@ export default function TreasurerLoans() {
             <span>Loan</span>
             <select value={repayment.loan_id} onChange={(e) => setRepayment({ ...repayment, loan_id: e.target.value })} required>
               <option value="">Select loan</option>
-              {loans.filter((loan) => loan.status !== 'completed').map((loan) => (
+              {activeLoans.map((loan) => (
                 <option key={loan.id} value={loan.id}>
                   {loan.full_name} - balance {money(loan.remaining_balance)}
                 </option>
               ))}
             </select>
+            {selectedLoan() && (
+              <small>
+                Remaining balance: <strong>{money(selectedLoan().remaining_balance)}</strong>
+                {selectedLoan().status === 'overdue' && <span className="badge badge-danger"> Overdue</span>}
+              </small>
+            )}
           </label>
           <FormField label="Amount (UGX)" type="number" min="1" value={repayment.amount} onChange={(e) => setRepayment({ ...repayment, amount: e.target.value })} required />
           <Button>Record repayment</Button>
