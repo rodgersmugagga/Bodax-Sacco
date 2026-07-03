@@ -10,6 +10,7 @@ import MemberDashboard from './pages/member/Dashboard.jsx';
 import MemberLoans from './pages/member/Loans.jsx';
 import Profile from './pages/member/Profile.jsx';
 import MemberStatements from './pages/member/Statements.jsx';
+import WithdrawRequest from './pages/member/WithdrawRequest.jsx';
 import TreasurerDashboard from './pages/treasurer/Dashboard.jsx';
 import TreasurerLoans from './pages/treasurer/Loans.jsx';
 import Members from './pages/treasurer/Members.jsx';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="member/loans" element={<ProtectedRoute roles={['MEMBER']}><MemberLoans /></ProtectedRoute>} />
         <Route path="member/statements" element={<ProtectedRoute roles={['MEMBER']}><MemberStatements /></ProtectedRoute>} />
         <Route path="member/profile" element={<ProtectedRoute roles={['MEMBER']}><Profile /></ProtectedRoute>} />
+        <Route path="member/withdraw" element={<ProtectedRoute roles={['MEMBER']}><WithdrawRequest /></ProtectedRoute>} />
         <Route path="treasurer/members" element={<ProtectedRoute roles={['TREASURER']}><Members /></ProtectedRoute>} />
         <Route path="treasurer/savings" element={<ProtectedRoute roles={['TREASURER']}><RecordSavings /></ProtectedRoute>} />
         <Route path="treasurer/confirm-deposits" element={<ProtectedRoute roles={['TREASURER']}><ConfirmDeposits /></ProtectedRoute>} />

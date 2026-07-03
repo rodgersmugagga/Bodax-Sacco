@@ -661,6 +661,26 @@ tr:last-child td {
   font-size: 0.825rem;
 }
 
+.checkbox-field {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.checkbox-field span {
+  font-weight: 500;
+  color: #334155;
+}
+
 .details {
   display: grid;
   grid-template-columns: minmax(140px, 200px) 1fr;
@@ -684,6 +704,349 @@ tr:last-child td {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 4px solid var(--line);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-retry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.loading-retry .alert {
+  margin: 0;
+  text-align: center;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 480px;
+  width: 100%;
+  display: grid;
+  gap: 20px;
+  box-shadow: var(--shadow-xl);
+}
+
+.modal-content h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+.modal-content .details {
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* Receipt Confirmation Screen */
+.receipt {
+  background: var(--panel);
+  border: 2px solid var(--primary-border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  display: grid;
+  gap: 16px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+
+.receipt h3 {
+  margin: 0;
+  color: var(--primary-hover);
+  font-size: 1.3rem;
+}
+
+.receipt .receipt-body {
+  display: grid;
+  gap: 10px;
+  padding: 16px 0;
+  border-top: 2px dashed var(--line);
+  border-bottom: 2px dashed var(--line);
+}
+
+.receipt .receipt-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.receipt .receipt-row span:first-child {
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.receipt .receipt-row span:last-child {
+  font-weight: 700;
+  color: #0f172a;
+  text-align: right;
+}
+
+.receipt .receipt-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Statement cards for narrow screens */
+.statement-cards {
+  display: none;
+}
+
+.transaction-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  background: var(--panel);
+}
+
+.transaction-card .tx-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.transaction-card .tx-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.transaction-card .tx-value {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.transaction-card .tx-type {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.tx-type-saving {
+  color: #065f46;
+  background: var(--success-light);
+}
+
+.tx-type-loan-repayment {
+  color: #065f46;
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
+}
+
+.tx-type-withdrawal {
+  color: #991b1b;
+  background: var(--danger-light);
+}
+
+@media (max-width: 479px) {
+  .table-wrap {
+    display: none;
+  }
+
+  .statement-cards {
+    display: grid;
+    gap: 12px;
+  }
+}
+
+/* Overdue loans section */
+.overdue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.overdue-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  border-left: 4px solid var(--danger);
+}
+
+.overdue-item .od-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.overdue-item .od-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.overdue-item .od-value {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.overdue-badge-high {
+  color: #991b1b;
+  background: var(--danger-light);
+  border: 1px solid #fecaca;
+}
+
+.overdue-badge-medium {
+  color: #92400e;
+  background: var(--warn-light);
+  border: 1px solid #fde68a;
+}
+
+/* Notification events table */
+.notification-events {
+  display: grid;
+  gap: 0;
+}
+
+.notification-events .ne-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.notification-events .ne-row:last-child {
+  border-bottom: 0;
+}
+
+.notification-events .ne-event {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.notification-events .ne-trigger {
+  color: var(--muted);
+}
+
+/* Pre-filled repayment form emphasis */
+.repayment-summary {
+  border: 1px solid var(--primary-border);
+  background: var(--primary-light);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.repayment-summary .rp-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.repayment-summary .rp-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.repayment-summary .rp-value {
+  font-weight: 700;
+  color: var(--primary-hover);
+}
+
+/* Loan approval review card */
+.review-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+}
+
+.review-card .rv-item {
+  display: grid;
+  gap: 4px;
+}
+
+.review-card .rv-label {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.review-card .rv-value {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+@media (max-width: 480px) {
+  .review-card {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Responsiveness settings */
