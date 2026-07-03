@@ -70,7 +70,24 @@ export async function createMember(payload) {
 }
 
 export async function updateMember(id, payload) {
-  await getMember(id);
+  const existing = await getMember(id);
+
+  // Pre-check uniqueness of phone_number if it changed
+  if (payload.phone_number && payload.phone_number !== existing.phone_number) {
+    const phoneCheck = await query('SELECT id FROM members WHERE phone_number = $1 AND id != $2', [payload.phone_number, id]);
+    if (phoneCheck.rows.length > 0) {
+      throw new AppError('This phone number is already registered to another member', 400);
+    }
+  }
+
+  // Pre-check uniqueness of member_number if it changed
+  if (payload.member_number && payload.member_number !== existing.member_number) {
+    const numCheck = await query('SELECT id FROM members WHERE member_number = $1 AND id != $2', [payload.member_number, id]);
+    if (numCheck.rows.length > 0) {
+      throw new AppError('This member number is already registered to another member', 400);
+    }
+  }
+
   const { rows } = await query(
     `UPDATE members
      SET full_name = COALESCE($2, full_name),

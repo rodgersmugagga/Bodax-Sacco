@@ -9,11 +9,16 @@ import { money, shortDate } from '../../utils/format.js';
 export default function ConfirmLoans() {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('pending');
+  const [error, setError] = useState('');
 
   async function load() {
-    const params = filter ? `?status=${filter}` : '';
-    const { data } = await api.get(`/loans/requests${params}`);
-    setRequests(data);
+    try {
+      const params = filter ? `?status=${filter}` : '';
+      const { data } = await api.get(`/loans/requests${params}`);
+      setRequests(data);
+    } catch (err) {
+      setError('Failed to load loan requests');
+    }
   }
 
   useEffect(() => {
@@ -21,13 +26,22 @@ export default function ConfirmLoans() {
   }, [filter]);
 
   async function review(id, action) {
-    await api.patch(`/loans/requests/${id}/review`, { action });
-    load();
+    const label = action === 'approve' ? 'confirm' : 'reject';
+    if (!window.confirm(`Are you sure you want to ${label} this loan request?`)) return;
+
+    setError('');
+    try {
+      await api.patch(`/loans/requests/${id}/review`, { action });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || `Failed to ${label} loan request`);
+    }
   }
 
   return (
     <div className="page-stack">
       <h1>Confirm loans</h1>
+      {error && <p className="error">{error}</p>}
       <Panel title="Loan requests">
         <div className="row-actions" style={{ marginBottom: '16px' }}>
           {['pending', 'approved', 'rejected', ''].map((status) => (

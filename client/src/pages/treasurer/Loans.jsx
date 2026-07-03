@@ -10,13 +10,18 @@ import { money, shortDate } from '../../utils/format.js';
 export default function TreasurerLoans() {
   const [members, setMembers] = useState([]);
   const [loans, setLoans] = useState([]);
+  const [error, setError] = useState('');
   const [loanForm, setLoanForm] = useState({ member_id: '', principal: '', interest_rate: 10, installment_count: 4, due_date: '' });
   const [repayment, setRepayment] = useState({ loan_id: '', amount: '' });
 
   async function load() {
-    const [memberResult, loanResult] = await Promise.all([api.get('/members?limit=100'), api.get('/loans')]);
-    setMembers(memberResult.data.data);
-    setLoans(loanResult.data);
+    try {
+      const [memberResult, loanResult] = await Promise.all([api.get('/members?limit=100'), api.get('/loans')]);
+      setMembers(memberResult.data.data);
+      setLoans(loanResult.data);
+    } catch (err) {
+      setError('Failed to load data');
+    }
   }
 
   useEffect(() => {
@@ -25,27 +30,78 @@ export default function TreasurerLoans() {
 
   async function issue(event) {
     event.preventDefault();
-    await api.post('/loans', loanForm);
-    setLoanForm({ member_id: '', principal: '', interest_rate: 10, installment_count: 4, due_date: '' });
-    load();
+    setError('');
+
+    const principal = Number(loanForm.principal);
+    if (!principal || principal < 1) {
+      setError('Principal must be at least 1 UGX');
+      return;
+    }
+    if (!loanForm.member_id) {
+      setError('Please select a member');
+      return;
+    }
+    if (!loanForm.due_date) {
+      setError('Due date is required');
+      return;
+    }
+    if (new Date(loanForm.due_date) <= new Date(new Date().toDateString())) {
+      setError('Due date must be in the future');
+      return;
+    }
+
+    if (!window.confirm(
+      `Issue a loan of ${Number(principal).toLocaleString()} UGX to this member?\n\nInterest: ${loanForm.interest_rate}%\nInstallments: ${loanForm.installment_count}\nDue: ${loanForm.due_date}`
+    )) return;
+
+    try {
+      await api.post('/loans', {
+        member_id: loanForm.member_id,
+        principal,
+        interest_rate: Number(loanForm.interest_rate) || 10,
+        installment_count: Number(loanForm.installment_count) || 4,
+        due_date: loanForm.due_date,
+      });
+      setLoanForm({ member_id: '', principal: '', interest_rate: 10, installment_count: 4, due_date: '' });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to issue loan');
+    }
   }
 
   async function pay(event) {
     event.preventDefault();
-    await api.post('/loans/repayments', repayment);
-    setRepayment({ loan_id: '', amount: '' });
-    load();
+    setError('');
+
+    const amount = Number(repayment.amount);
+    if (!amount || amount < 1) {
+      setError('Repayment amount must be at least 1 UGX');
+      return;
+    }
+    if (!repayment.loan_id) {
+      setError('Please select a loan');
+      return;
+    }
+
+    try {
+      await api.post('/loans/repayments', { loan_id: repayment.loan_id, amount });
+      setRepayment({ loan_id: '', amount: '' });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to record repayment');
+    }
   }
 
   return (
     <div className="page-stack">
       <h1>Loans</h1>
+      {error && <p className="error">{error}</p>}
       <Panel title="Issue loan">
         <form className="form-grid" onSubmit={issue}>
           <SelectMember members={members} value={loanForm.member_id} onChange={(value) => setLoanForm({ ...loanForm, member_id: value })} />
-          <FormField label="Principal (UGX)" type="number" value={loanForm.principal} onChange={(e) => setLoanForm({ ...loanForm, principal: e.target.value })} required />
-          <FormField label="Interest %" type="number" value={loanForm.interest_rate} onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })} />
-          <FormField label="Installments" type="number" value={loanForm.installment_count} onChange={(e) => setLoanForm({ ...loanForm, installment_count: e.target.value })} />
+          <FormField label="Principal (UGX)" type="number" min="1" value={loanForm.principal} onChange={(e) => setLoanForm({ ...loanForm, principal: e.target.value })} required />
+          <FormField label="Interest %" type="number" min="0" max="100" value={loanForm.interest_rate} onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })} />
+          <FormField label="Installments" type="number" min="1" max="60" value={loanForm.installment_count} onChange={(e) => setLoanForm({ ...loanForm, installment_count: e.target.value })} />
           <FormField label="Due date" type="date" value={loanForm.due_date} onChange={(e) => setLoanForm({ ...loanForm, due_date: e.target.value })} required />
           <Button>Issue loan</Button>
         </form>
@@ -63,7 +119,7 @@ export default function TreasurerLoans() {
               ))}
             </select>
           </label>
-          <FormField label="Amount (UGX)" type="number" value={repayment.amount} onChange={(e) => setRepayment({ ...repayment, amount: e.target.value })} required />
+          <FormField label="Amount (UGX)" type="number" min="1" value={repayment.amount} onChange={(e) => setRepayment({ ...repayment, amount: e.target.value })} required />
           <Button>Record repayment</Button>
         </form>
       </Panel>

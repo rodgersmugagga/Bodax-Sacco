@@ -10,13 +10,15 @@ export const recordRepayment = asyncHandler(async (req, res) => {
 });
 
 export const listLoans = asyncHandler(async (req, res) => {
-  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : req.query.member_id;
-  res.json(await loanService.listLoans({ memberId, status: req.query.status }));
+  const query = req.validated?.query || req.query;
+  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : query.member_id;
+  res.json(await loanService.listLoans({ memberId, status: query.status }));
 });
 
 export const checkEligibility = asyncHandler(async (req, res) => {
-  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : req.query.member_id;
-  const requestedAmount = req.query.amount ? Number(req.query.amount) : null;
+  const query = req.validated?.query || req.query;
+  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : query.member_id;
+  const requestedAmount = query.amount ?? null;
   res.json(await loanService.checkLoanEligibility(memberId, requestedAmount));
 });
 
@@ -29,8 +31,9 @@ export const createLoanRequest = asyncHandler(async (req, res) => {
 });
 
 export const listLoanRequests = asyncHandler(async (req, res) => {
-  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : req.query.member_id;
-  res.json(await loanService.listLoanRequests({ status: req.query.status, memberId }));
+  const query = req.validated?.query || req.query;
+  const memberId = req.user.role_code === 'MEMBER' ? req.user.member_id : query.member_id;
+  res.json(await loanService.listLoanRequests({ status: query.status, memberId }));
 });
 
 export const reviewLoanRequest = asyncHandler(async (req, res) => {

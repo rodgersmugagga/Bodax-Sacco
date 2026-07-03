@@ -567,7 +567,8 @@ tr:last-child td {
 
 /* Alerts and Messages */
 .alert,
-.success {
+.success,
+.error {
   margin: 0;
   border-radius: var(--radius-sm);
   padding: 14px;
@@ -575,7 +576,8 @@ tr:last-child td {
   font-size: 0.925rem;
 }
 
-.alert {
+.alert,
+.error {
   color: #991b1b;
   background: var(--danger-light);
   border: 1px solid #fecaca;

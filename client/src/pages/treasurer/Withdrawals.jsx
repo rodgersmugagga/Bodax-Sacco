@@ -8,10 +8,15 @@ import { money, shortDate } from '../../utils/format.js';
 
 export default function Withdrawals() {
   const [requests, setRequests] = useState([]);
+  const [error, setError] = useState('');
 
   async function load() {
-    const { data } = await api.get('/withdrawals/requests');
-    setRequests(data);
+    try {
+      const { data } = await api.get('/withdrawals/requests');
+      setRequests(data);
+    } catch (err) {
+      setError('Failed to load withdrawal requests');
+    }
   }
 
   useEffect(() => {
@@ -19,13 +24,22 @@ export default function Withdrawals() {
   }, []);
 
   async function review(id, action) {
-    await api.patch(`/withdrawals/requests/${id}/review`, { action });
-    load();
+    const label = action === 'approve' ? 'approve' : 'reject';
+    if (!window.confirm(`Are you sure you want to ${label} this withdrawal request?`)) return;
+
+    setError('');
+    try {
+      await api.patch(`/withdrawals/requests/${id}/review`, { action });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || `Failed to ${label} withdrawal request`);
+    }
   }
 
   return (
     <div className="page-stack">
       <h1>Withdrawals</h1>
+      {error && <p className="error">{error}</p>}
       <Panel title="Withdrawal requests">
         <DataTable
           rows={requests}

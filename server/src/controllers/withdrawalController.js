@@ -10,7 +10,8 @@ export const createWithdrawalRequest = asyncHandler(async (req, res) => {
 });
 
 export const listWithdrawalRequests = asyncHandler(async (req, res) => {
-  res.json(await withdrawalService.listWithdrawalRequests(req.query.status));
+  const status = req.validated?.query?.status;
+  res.json(await withdrawalService.listWithdrawalRequests(status));
 });
 
 export const reviewWithdrawalRequest = asyncHandler(async (req, res) => {

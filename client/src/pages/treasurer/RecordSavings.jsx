@@ -7,6 +7,7 @@ import api from '../../api/client.js';
 export default function RecordSavings() {
   const [members, setMembers] = useState([]);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ member_id: '', amount: '', transaction_date: new Date().toISOString().slice(0, 10), notes: '' });
 
   useEffect(() => {
@@ -15,9 +16,31 @@ export default function RecordSavings() {
 
   async function submit(event) {
     event.preventDefault();
-    await api.post('/savings', form);
-    setMessage('Savings recorded successfully');
-    setForm((current) => ({ ...current, amount: '', notes: '', member_id: '' }));
+    setError('');
+    setMessage('');
+
+    const amount = Number(form.amount);
+    if (!amount || amount < 1) {
+      setError('Amount must be at least 1 UGX');
+      return;
+    }
+    if (!form.member_id?.trim()) {
+      setError('Please select a member');
+      return;
+    }
+
+    try {
+      await api.post('/savings', {
+        member_id: form.member_id.trim(),
+        amount,
+        transaction_date: form.transaction_date || undefined,
+        notes: form.notes.trim() || undefined,
+      });
+      setMessage('Savings recorded successfully');
+      setForm((current) => ({ ...current, amount: '', notes: '', member_id: '' }));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to record savings');
+    }
   }
 
   return (
@@ -25,6 +48,7 @@ export default function RecordSavings() {
       <h1>Record Savings</h1>
       <Panel title="New savings transaction">
         {message && <p className="success">{message}</p>}
+        {error && <p className="error">{error}</p>}
         <form className="form-grid" onSubmit={submit}>
           <label className="field">
             <span>Member</span>
@@ -37,9 +61,9 @@ export default function RecordSavings() {
               ))}
             </select>
           </label>
-          <FormField label="Amount (UGX)" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+          <FormField label="Amount (UGX)" type="number" min="1" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
           <FormField label="Date" type="date" value={form.transaction_date} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} />
-          <FormField label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <FormField label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} maxLength="500" />
           <Button>Record savings</Button>
         </form>
       </Panel>
