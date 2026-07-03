@@ -1,7 +1,45 @@
 import { query, transaction } from '../config/db.js';
 import { AppError } from '../utils/AppError.js';
 
+async function memberConfirmedSavings(memberId, db = { query }) {
+  const { rows } = await db.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total
+     FROM savings_transactions
+     WHERE member_id = $1 AND confirmed = true`,
+    [memberId],
+  );
+  return Number(rows[0].total);
+}
+
+async function assertMemberIsActive(memberId, db = { query }) {
+  const { rows } = await db.query('SELECT status FROM members WHERE id = $1', [memberId]);
+  if (!rows[0]) throw new AppError('Member not found', 404);
+  if (rows[0].status !== 'active') {
+    throw new AppError('Member account is not active', 400);
+  }
+}
+
 export async function createWithdrawalRequest(payload) {
+  await assertMemberIsActive(payload.member_id);
+
+  // Prevent duplicate pending withdrawal requests for the same member
+  const pending = await query(
+    `SELECT id FROM withdrawal_requests WHERE member_id = $1 AND status = 'pending'`,
+    [payload.member_id],
+  );
+  if (pending.rows.length > 0) {
+    throw new AppError('This member already has a pending withdrawal request', 400);
+  }
+
+  // Verify sufficient confirmed savings balance
+  const totalSavings = await memberConfirmedSavings(payload.member_id);
+  if (Number(payload.amount) > totalSavings) {
+    throw new AppError(
+      `Insufficient savings balance. Available: ${totalSavings.toLocaleString()} UGX, requested: ${Number(payload.amount).toLocaleString()} UGX`,
+      400,
+    );
+  }
+
   const { rows } = await query(
     `INSERT INTO withdrawal_requests (member_id, amount, reason)
      VALUES ($1, $2, $3)
@@ -32,6 +70,20 @@ export async function reviewWithdrawalRequest(id, action, reviewedBy) {
     const request = found.rows[0];
     if (!request) throw new AppError('Withdrawal request not found', 404);
     if (request.status !== 'pending') throw new AppError('Request has already been reviewed', 409);
+
+    if (action === 'approve') {
+      // Verify member is still active at approval time
+      await assertMemberIsActive(request.member_id, client);
+
+      // Verify sufficient balance at approval time (inside transaction for consistency)
+      const totalSavings = await memberConfirmedSavings(request.member_id, client);
+      if (Number(request.amount) > totalSavings) {
+        throw new AppError(
+          `Insufficient savings balance at approval time. Available: ${totalSavings.toLocaleString()} UGX`,
+          400,
+        );
+      }
+    }
 
     const status = action === 'approve' ? 'approved' : 'rejected';
     const reviewed = await client.query(

@@ -7,7 +7,7 @@ import api from '../../api/client.js';
 export default function ConfirmDeposits() {
   const [members, setMembers] = useState([]);
   const [message, setMessage] = useState('');
-  const [receiptConfirmed, setReceiptConfirmed] = useState(true);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ 
     member_id: '', 
     amount: '', 
@@ -21,14 +21,36 @@ export default function ConfirmDeposits() {
 
   async function submit(event) {
     event.preventDefault();
-    await api.post('/savings', { ...form, confirmed: receiptConfirmed });
-    setMessage('Savings deposit confirmed and recorded successfully.');
-    setForm({ 
-      member_id: '', 
-      amount: '', 
-      transaction_date: new Date().toISOString().slice(0, 10), 
-      notes: '' 
-    });
+    setError('');
+    setMessage('');
+
+    const amount = Number(form.amount);
+    if (!amount || amount < 1) {
+      setError('Amount must be at least 1 UGX');
+      return;
+    }
+    if (!form.member_id?.trim()) {
+      setError('Please select a member');
+      return;
+    }
+
+    try {
+      await api.post('/savings', {
+        member_id: form.member_id.trim(),
+        amount,
+        transaction_date: form.transaction_date || undefined,
+        notes: form.notes.trim() || undefined,
+      });
+      setMessage('Savings deposit confirmed and recorded successfully.');
+      setForm({ 
+        member_id: '', 
+        amount: '', 
+        transaction_date: new Date().toISOString().slice(0, 10), 
+        notes: '' 
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to confirm deposit');
+    }
   }
 
   return (
@@ -36,6 +58,7 @@ export default function ConfirmDeposits() {
       <h1>Confirm Savings Deposit</h1>
       <Panel title="Confirm savings receipt">
         {message && <p className="success">{message}</p>}
+        {error && <p className="error">{error}</p>}
         <form className="form-grid" onSubmit={submit}>
           <label className="field">
             <span>Member</span>
@@ -55,7 +78,7 @@ export default function ConfirmDeposits() {
           <FormField
             label="Amount (UGX)"
             type="number"
-            min="0"
+            min="1"
             value={form.amount}
             onChange={(e) => setForm({ ...form, amount: e.target.value })}
             required
@@ -70,16 +93,9 @@ export default function ConfirmDeposits() {
           <FormField 
             label="Notes" 
             value={form.notes} 
-            onChange={(e) => setForm({ ...form, notes: e.target.value })} 
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            maxLength="500"
           />
-          <label className="field checkbox-field">
-            <input 
-              type="checkbox" 
-              checked={receiptConfirmed} 
-              onChange={(e) => setReceiptConfirmed(e.target.checked)} 
-            />
-            <span>Send SMS confirmation to the member</span>
-          </label>
           <Button>Confirm deposit</Button>
         </form>
       </Panel>

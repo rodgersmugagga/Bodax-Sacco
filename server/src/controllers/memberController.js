@@ -2,7 +2,7 @@ import * as memberService from '../services/memberService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const listMembers = asyncHandler(async (req, res) => {
-  res.json(await memberService.listMembers(req.query));
+  res.json(await memberService.listMembers(req.validated?.query || req.query));
 });
 
 export const getMember = asyncHandler(async (req, res) => {

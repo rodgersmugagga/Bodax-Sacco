@@ -24,12 +24,18 @@ export async function refreshOverdueLoans() {
   );
 }
 
-export async function checkLoanEligibility(memberId, requestedAmount = null) {
-  const memberResult = await query('SELECT status FROM members WHERE id = $1', [memberId]);
+export async function checkLoanEligibility(memberId, requestedAmount = null, db) {
+  // When called from within a transaction, use the provided client so FOR
+  // UPDATE locks protect the savings check from race conditions. Otherwise
+  // use the module-level query (global pool).
+  const run = db?.query ? db : { query };
+  const runQuery = run.query.bind(run);
+
+  const memberResult = await runQuery('SELECT status FROM members WHERE id = $1', [memberId]);
   const member = memberResult.rows[0];
   if (!member) throw new AppError('Member not found', 404);
 
-  const savingsResult = await query(
+  const savingsResult = await runQuery(
     `SELECT COALESCE(SUM(amount), 0) AS total
      FROM savings_transactions
      WHERE member_id = $1 AND confirmed = true`,
@@ -48,7 +54,7 @@ export async function checkLoanEligibility(memberId, requestedAmount = null) {
     };
   }
 
-  const activeLoans = await listLoans({ memberId });
+  const activeLoans = await listLoans({ memberId, _db: run });
   const hasActiveLoan = activeLoans.some((loan) => ['active', 'overdue'].includes(loan.status));
   if (hasActiveLoan) {
     return {
@@ -60,7 +66,7 @@ export async function checkLoanEligibility(memberId, requestedAmount = null) {
     };
   }
 
-  const pendingRequest = await query(
+  const pendingRequest = await runQuery(
     `SELECT id FROM loan_requests WHERE member_id = $1 AND status = 'pending'`,
     [memberId],
   );
@@ -160,7 +166,7 @@ export async function reviewLoanRequest(id, action, reviewedBy, notes = null) {
         throw new AppError('Cannot approve an ineligible loan request', 400);
       }
 
-      const eligibility = await checkLoanEligibility(request.member_id, request.requested_amount);
+      const eligibility = await checkLoanEligibility(request.member_id, request.requested_amount, client);
       if (!eligibility.eligible) {
         throw new AppError(eligibility.reason, 400);
       }
@@ -269,6 +275,9 @@ export async function recordRepayment(payload, recordedBy) {
     const loanResult = await client.query('SELECT * FROM loans WHERE id = $1', [payload.loan_id]);
     const loan = loanResult.rows[0];
     if (!loan) throw new AppError('Loan not found', 404);
+    if (loan.status === 'completed') {
+      throw new AppError('Cannot record repayment: this loan is already fully paid', 400);
+    }
 
     const repayment = await client.query(
       `INSERT INTO loan_repayments (loan_id, member_id, recorded_by, amount, payment_date, notes)
@@ -282,7 +291,11 @@ export async function recordRepayment(payload, recordedBy) {
   });
 }
 
-export async function listLoans({ memberId, status } = {}) {
+export async function listLoans({ memberId, status, _db } = {}) {
+  // _db is an optional internal parameter to pass a transaction client
+  const run = _db?.query ? _db : { query };
+  const runQuery = run.query.bind(run);
+
   await refreshOverdueLoans();
 
   const params = [];
@@ -296,7 +309,7 @@ export async function listLoans({ memberId, status } = {}) {
     filters.push(`l.status = $${params.length}`);
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-  const { rows } = await query(
+  const { rows } = await runQuery(
     `SELECT l.*, m.full_name, m.member_number,
             COALESCE(SUM(r.amount), 0) AS amount_paid,
             GREATEST(l.total_payable - COALESCE(SUM(r.amount), 0), 0) AS remaining_balance

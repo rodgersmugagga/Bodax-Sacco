@@ -7,16 +7,31 @@ import SearchBox from '../../components/SearchBox.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import api from '../../api/client.js';
 
+const DEFAULT_STAGE = 'Mbarara Central Stage';
+
+function isValidUgandanPhone(value) {
+  return /^(0\d{9}|\+256\d{9})$/.test(value.replace(/\s/g, ''));
+}
+
 export default function Members() {
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
-  const [form, setForm] = useState({ member_number: '', full_name: '', phone_number: '', national_id: '', stage: 'Mbarara Central Stage', next_of_kin: '', password: '' });
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({ member_number: '', full_name: '', phone_number: '', national_id: '', stage: DEFAULT_STAGE, next_of_kin: '', password: '' });
   const [credentials, setCredentials] = useState({ member_id: '', password: '' });
 
+  function clearForm() {
+    setForm({ member_number: '', full_name: '', phone_number: '', national_id: '', stage: DEFAULT_STAGE, next_of_kin: '', password: '' });
+  }
+
   async function load() {
-    const { data } = await api.get(`/members?search=${encodeURIComponent(search)}`);
-    setMembers(data.data);
+    try {
+      const { data } = await api.get(`/members?search=${encodeURIComponent(search)}`);
+      setMembers(data.data);
+    } catch (err) {
+      setError('Failed to load members');
+    }
   }
 
   useEffect(() => {
@@ -25,18 +40,66 @@ export default function Members() {
 
   async function submit(event) {
     event.preventDefault();
-    await api.post('/members', form);
-    setMessage('Member saved. They can log in using their phone number.');
-    setForm({ ...form, member_number: '', full_name: '', phone_number: '', national_id: '', next_of_kin: '', password: '' });
-    load();
+    setError('');
+    setMessage('');
+
+    const phone = form.phone_number.trim();
+    if (!isValidUgandanPhone(phone)) {
+      setError('Enter a valid Ugandan phone number (e.g. 0772123456 or +256772123456)');
+      return;
+    }
+
+    if (!form.full_name.trim() || form.full_name.trim().length < 2) {
+      setError('Full name must be at least 2 characters');
+      return;
+    }
+
+    if (!form.member_number.trim()) {
+      setError('Member number is required');
+      return;
+    }
+
+    try {
+      await api.post('/members', {
+        ...form,
+        member_number: form.member_number.trim(),
+        full_name: form.full_name.trim(),
+        phone_number: phone,
+        national_id: form.national_id.trim() || undefined,
+        stage: form.stage.trim(),
+        next_of_kin: form.next_of_kin.trim() || undefined,
+        password: form.password || undefined,
+      });
+      setMessage('Member saved. They can log in using their phone number.');
+      clearForm();
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save member');
+    }
   }
 
   async function saveCredentials(event) {
     event.preventDefault();
-    await api.patch(`/members/${credentials.member_id}/credentials`, { password: credentials.password });
-    setMessage('Member login password updated.');
-    setCredentials({ member_id: '', password: '' });
-    load();
+    setError('');
+    setMessage('');
+
+    if (!credentials.member_id) {
+      setError('Please select a member');
+      return;
+    }
+    if (!credentials.password || credentials.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      await api.patch(`/members/${credentials.member_id}/credentials`, { password: credentials.password });
+      setMessage('Member login password updated.');
+      setCredentials({ member_id: '', password: '' });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update password');
+    }
   }
 
   function update(key, value) {
@@ -48,18 +111,21 @@ export default function Members() {
       <h1>Members</h1>
       <Panel title="Register member">
         {message && <p className="success">{message}</p>}
+        {error && <p className="error">{error}</p>}
         <form className="form-grid" onSubmit={submit}>
-          <FormField label="Member number" value={form.member_number} onChange={(e) => update('member_number', e.target.value)} required />
-          <FormField label="Full name" value={form.full_name} onChange={(e) => update('full_name', e.target.value)} required />
-          <FormField label="Phone number" value={form.phone_number} onChange={(e) => update('phone_number', e.target.value)} required />
-          <FormField label="National ID" value={form.national_id} onChange={(e) => update('national_id', e.target.value)} />
-          <FormField label="Stage" value={form.stage} onChange={(e) => update('stage', e.target.value)} required />
-          <FormField label="Next of kin" value={form.next_of_kin} onChange={(e) => update('next_of_kin', e.target.value)} />
-          <FormField label="Login password" type="password" value={form.password} onChange={(e) => update('password', e.target.value)} minLength="6" />
+          <FormField label="Member number" value={form.member_number} onChange={(e) => update('member_number', e.target.value)} required maxLength="40" />
+          <FormField label="Full name" value={form.full_name} onChange={(e) => update('full_name', e.target.value)} required minLength="2" maxLength="160" />
+          <FormField label="Phone number" value={form.phone_number} onChange={(e) => update('phone_number', e.target.value)} required maxLength="30" placeholder="0772123456 or +256772123456" />
+          <FormField label="National ID" value={form.national_id} onChange={(e) => update('national_id', e.target.value)} maxLength="80" />
+          <FormField label="Stage" value={form.stage} onChange={(e) => update('stage', e.target.value)} required maxLength="120" />
+          <FormField label="Next of kin" value={form.next_of_kin} onChange={(e) => update('next_of_kin', e.target.value)} maxLength="160" />
+          <FormField label="Login password" type="password" value={form.password} onChange={(e) => update('password', e.target.value)} minLength="6" maxLength="128" />
           <Button>Save member</Button>
         </form>
       </Panel>
       <Panel title="Set member login password">
+        {message && <p className="success">{message}</p>}
+        {error && <p className="error">{error}</p>}
         <form className="form-grid" onSubmit={saveCredentials}>
           <label className="field">
             <span>Member</span>
@@ -78,6 +144,7 @@ export default function Members() {
             value={credentials.password}
             onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
             minLength="6"
+            maxLength="128"
             required
           />
           <Button>Update password</Button>

@@ -1,13 +1,20 @@
 import { query } from '../config/db.js';
 import { weekStart, monthStart, yearStart } from '../utils/dates.js';
+import { AppError } from '../utils/AppError.js';
 
 export async function recordSaving(payload, recordedBy) {
-  const confirmed = payload.confirmed !== false;
+  // Verify member exists and is active before recording savings
+  const memberResult = await query('SELECT id, status FROM members WHERE id = $1', [payload.member_id]);
+  if (!memberResult.rows[0]) throw new AppError('Member not found', 404);
+  if (memberResult.rows[0].status !== 'active') {
+    throw new AppError('Cannot record savings for an inactive member', 400);
+  }
+
   const { rows } = await query(
     `INSERT INTO savings_transactions (member_id, recorded_by, amount, transaction_date, notes, confirmed)
      VALUES ($1, $2, $3, COALESCE($4, CURRENT_DATE), $5, $6)
      RETURNING *`,
-    [payload.member_id, recordedBy, payload.amount, payload.transaction_date || null, payload.notes || null, confirmed],
+    [payload.member_id, recordedBy, payload.amount, payload.transaction_date || null, payload.notes || null, true],
   );
 
   return rows[0];
