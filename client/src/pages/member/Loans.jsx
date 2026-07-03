@@ -6,6 +6,13 @@ import { Panel } from '../../components/Card.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import api from '../../api/client.js';
 import { money, shortDate } from '../../utils/format.js';
+import {
+  positiveAmount,
+  positiveInteger,
+  notPastDate,
+  dateRequired,
+  runValidation,
+} from '../../utils/validate.js';
 
 export default function MemberLoans() {
   const [loans, setLoans] = useState([]);
@@ -14,6 +21,8 @@ export default function MemberLoans() {
   const [form, setForm] = useState({ requested_amount: '', purpose: '', installment_count: 4, due_date: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   async function load() {
     const [loanResult, requestResult, eligibilityResult] = await Promise.all([
@@ -40,10 +49,24 @@ export default function MemberLoans() {
     setEligibility(data);
   }
 
+  function validate() {
+    return runValidation({
+      requested_amount: positiveAmount(form.requested_amount, 'Amount'),
+      installment_count: positiveInteger(form.installment_count, 'Installments'),
+      due_date: dateRequired(form.due_date, 'Due date') || notPastDate(form.due_date, 'Due date'),
+    });
+  }
+
   async function submit(event) {
     event.preventDefault();
     setMessage('');
     setError('');
+
+    const { errors: fieldErrors, isValid } = validate();
+    setErrors(fieldErrors);
+    if (!isValid) return;
+
+    setSubmitting(true);
     try {
       const { data } = await api.post('/loans/requests', form);
       setMessage(
@@ -52,9 +75,12 @@ export default function MemberLoans() {
           : `Request submitted but marked ineligible: ${data.eligibility.reason}`,
       );
       setForm({ requested_amount: '', purpose: '', installment_count: 4, due_date: '' });
+      setErrors({});
       load();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit loan request');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -78,36 +104,47 @@ export default function MemberLoans() {
       <Panel title="Request a loan">
         {message && <p className="success">{message}</p>}
         {error && <p className="alert">{error}</p>}
-        <form className="form-grid" onSubmit={submit}>
+        <form className="form-grid" onSubmit={submit} noValidate>
           <FormField
             label="Amount (UGX)"
             type="number"
+            min="1"
+            step="1"
             value={form.requested_amount}
             onChange={(e) => {
               setForm({ ...form, requested_amount: e.target.value });
               checkAmount(e.target.value);
             }}
+            error={errors.requested_amount}
             required
           />
           <FormField
             label="Purpose"
             value={form.purpose}
             onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+            maxLength="200"
+            placeholder="What is the loan for? (optional)"
           />
           <FormField
             label="Installments"
             type="number"
+            min="1"
+            max="60"
+            step="1"
             value={form.installment_count}
             onChange={(e) => setForm({ ...form, installment_count: e.target.value })}
+            error={errors.installment_count}
           />
           <FormField
             label="Repayment due date"
             type="date"
+            min={new Date().toISOString().slice(0, 10)}
             value={form.due_date}
             onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+            error={errors.due_date}
             required
           />
-          <Button>Submit loan request</Button>
+          <Button disabled={submitting}>{submitting ? 'Submitting...' : 'Submit loan request'}</Button>
         </form>
       </Panel>
 
