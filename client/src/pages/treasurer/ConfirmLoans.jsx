@@ -3,12 +3,14 @@ import Button from '../../components/Button.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import { Panel } from '../../components/Card.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import ConfirmModal from '../../components/ConfirmModal.jsx';
 import api from '../../api/client.js';
 import { money, shortDate } from '../../utils/format.js';
 
 export default function ConfirmLoans() {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('pending');
+  const [confirmAction, setConfirmAction] = useState(null);
 
   async function load() {
     const params = filter ? `?status=${filter}` : '';
@@ -20,8 +22,15 @@ export default function ConfirmLoans() {
     load();
   }, [filter]);
 
-  async function review(id, action) {
-    await api.patch(`/loans/requests/${id}/review`, { action });
+  function promptReview(row, action) {
+    setConfirmAction({ row, action });
+  }
+
+  async function executeReview() {
+    if (!confirmAction) return;
+    const { row, action } = confirmAction;
+    await api.patch(`/loans/requests/${row.id}/review`, { action });
+    setConfirmAction(null);
     load();
   }
 
@@ -67,11 +76,11 @@ export default function ConfirmLoans() {
                     <Button
                       variant="secondary"
                       disabled={row.eligibility_status !== 'eligible'}
-                      onClick={() => review(row.id, 'approve')}
+                      onClick={() => promptReview(row, 'approve')}
                     >
                       Confirm
                     </Button>
-                    <Button variant="danger" onClick={() => review(row.id, 'reject')}>
+                    <Button variant="danger" onClick={() => promptReview(row, 'reject')}>
                       Reject
                     </Button>
                   </div>
@@ -82,6 +91,18 @@ export default function ConfirmLoans() {
           ]}
         />
       </Panel>
+
+      <ConfirmModal
+        open={!!confirmAction}
+        title={confirmAction?.action === 'approve' ? 'Confirm Approve Loan' : 'Confirm Reject Loan'}
+        onConfirm={executeReview}
+        onCancel={() => setConfirmAction(null)}
+        variant={confirmAction?.action === 'approve' ? 'primary' : 'danger'}
+      >
+        <p>You are about to <strong>{confirmAction?.action} loan</strong>.</p>
+        <p><strong>Member:</strong> {confirmAction?.row?.full_name}</p>
+        <p><strong>Amount:</strong> {confirmAction?.row ? money(confirmAction.row.requested_amount) : ''}</p>
+      </ConfirmModal>
     </div>
   );
 }

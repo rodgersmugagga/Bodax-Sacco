@@ -4,8 +4,10 @@ import { Panel, StatCard } from '../../components/Card.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { money, shortDate } from '../../utils/format.js';
 import api from '../../api/client.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function MemberDashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState({});
   const [statement, setStatement] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +97,7 @@ export default function MemberDashboard() {
   return (
     <div className="page-stack">
       <h1>Member Dashboard</h1>
+      <h2 style={{ marginTop: '-12px', marginBottom: '24px', fontWeight: 'bold' }}>{user?.full_name} - {user?.member_number}</h2>
       
       {/* Overdue loan reminder popup */}
       {overdueReminder && (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Panel } from '../../components/Card.jsx';
 import Button from '../../components/Button.jsx';
 import FormField from '../../components/FormField.jsx';
+import StatusBadge from '../../components/StatusBadge.jsx';
 import api from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -20,16 +21,27 @@ export default function Profile() {
   return (
     <div className="page-stack">
       <h1>Profile</h1>
-      <Panel title="Member details">
-        <dl className="details">
-          <dt>Name</dt>
-          <dd>{user.full_name}</dd>
-          <dt>Member number</dt>
-          <dd>{user.member_number}</dd>
-          <dt>Email</dt>
-          <dd>{user.email}</dd>
-        </dl>
-      </Panel>
+      
+      <div style={{
+        background: 'var(--surface-color)',
+        padding: '24px',
+        borderRadius: 'var(--radius)',
+        boxShadow: 'var(--shadow-sm)',
+        border: '1px solid var(--border-color)',
+        marginBottom: '24px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '1.5rem', fontWeight: 'bold' }}>{user.full_name}</h2>
+            <p style={{ margin: '0 0 4px 0', color: 'var(--color-muted)' }}>Member Number: <strong>{user.member_number}</strong></p>
+            <p style={{ margin: '0', color: 'var(--color-muted)' }}>Stage: <strong>{user.stage || 'N/A'}</strong></p>
+          </div>
+          <div>
+            <StatusBadge status={user.status} />
+          </div>
+        </div>
+      </div>
+
       <Panel title="Change login password">
         {message && <p className="success">{message}</p>}
         <form className="form-grid" onSubmit={changePassword}>

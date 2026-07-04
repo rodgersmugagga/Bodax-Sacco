@@ -95,7 +95,7 @@ export default function MemberLoans() {
             onChange={(e) => setForm({ ...form, purpose: e.target.value })}
           />
           <FormField
-            label="Installments"
+            label="Number of payments"
             type="number"
             value={form.installment_count}
             onChange={(e) => setForm({ ...form, installment_count: e.target.value })}

@@ -34,7 +34,10 @@ export default function Login() {
           <span>Mbarara Boda Boda savings and loans</span>
         </div>
         {error && <p className="alert">{error}</p>}
-        <FormField label="Phone number or email" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required />
+        <div>
+          <FormField label="Phone number or email" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required />
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '-8px', marginBottom: '16px' }}>Use your phone number or email</p>
+        </div>
         <FormField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
         <Button type="submit" disabled={loading}>
           {loading ? 'Signing in...' : 'Sign in'}
