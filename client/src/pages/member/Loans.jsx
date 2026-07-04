@@ -5,7 +5,7 @@ import FormField from '../../components/FormField.jsx';
 import { Panel } from '../../components/Card.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import api from '../../api/client.js';
-import { money, shortDate } from '../../utils/format.js';
+import { money, shortDate, stripCommas, formatAmountInput } from '../../utils/format.js';
 
 export default function MemberLoans() {
   const [loans, setLoans] = useState([]);
@@ -31,12 +31,13 @@ export default function MemberLoans() {
   }, []);
 
   async function checkAmount(amount) {
-    if (!amount) {
+    const cleanAmount = stripCommas(amount);
+    if (!cleanAmount) {
       const { data } = await api.get('/loans/eligibility');
       setEligibility(data);
       return;
     }
-    const { data } = await api.get(`/loans/eligibility?amount=${amount}`);
+    const { data } = await api.get(`/loans/eligibility?amount=${cleanAmount}`);
     setEligibility(data);
   }
 
@@ -45,7 +46,8 @@ export default function MemberLoans() {
     setMessage('');
     setError('');
     try {
-      const { data } = await api.post('/loans/requests', form);
+      const cleanForm = { ...form, requested_amount: stripCommas(form.requested_amount) };
+      const { data } = await api.post('/loans/requests', cleanForm);
       setMessage(
         data.eligibility.eligible
           ? 'Loan request submitted. Awaiting treasurer confirmation.'
@@ -81,11 +83,13 @@ export default function MemberLoans() {
         <form className="form-grid" onSubmit={submit}>
           <FormField
             label="Amount (UGX)"
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={form.requested_amount}
             onChange={(e) => {
-              setForm({ ...form, requested_amount: e.target.value });
-              checkAmount(e.target.value);
+              const formatted = formatAmountInput(e.target.value);
+              setForm({ ...form, requested_amount: formatted });
+              checkAmount(formatted);
             }}
             required
           />
@@ -129,9 +133,9 @@ export default function MemberLoans() {
         <DataTable
           rows={loans}
           columns={[
-            { key: 'principal', label: 'Loan amount', render: (row) => money(row.principal) },
+            { key: 'principal', label: 'Amount borrowed', render: (row) => money(row.principal) },
             { key: 'remaining_balance', label: 'Balance', render: (row) => money(row.remaining_balance) },
-            { key: 'installment_amount', label: 'Next installment', render: (row) => money(row.installment_amount) },
+            { key: 'installment_amount', label: 'Next payment', render: (row) => money(row.installment_amount) },
             { key: 'due_date', label: 'Due', render: (row) => shortDate(row.due_date) },
             { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
           ]}

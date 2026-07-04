@@ -1,7 +1,7 @@
 export default function DataTable({ columns, rows, empty = 'No records found' }) {
   return (
     <div className="table-wrap">
-      <table>
+      <table className="responsive-table">
         <thead>
           <tr>
             {columns.map((column) => (
@@ -14,7 +14,9 @@ export default function DataTable({ columns, rows, empty = 'No records found' })
             rows.map((row, index) => (
               <tr key={row.id || index}>
                 {columns.map((column) => (
-                  <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>
+                  <td key={column.key} data-label={column.label}>
+                    {column.render ? column.render(row) : row[column.key]}
+                  </td>
                 ))}
               </tr>
             ))

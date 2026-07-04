@@ -22,7 +22,9 @@ export default function ChairmanDashboard() {
       {overdue.data.length > 0 && (
         <Panel title={`Overdue Loans (${overdue.data.length}) — Most overdue first`}>
           <div className="overdue-list">
-            {overdue.data.map((loan, i) => (
+            {[...overdue.data]
+              .sort((a, b) => b.days_overdue - a.days_overdue)
+              .map((loan, i) => (
               <div key={i} className="overdue-item">
                 <div className="od-row">
                   <span className="od-label">Member</span>

@@ -100,8 +100,27 @@ export default function ConfirmLoans() {
         variant={confirmAction?.action === 'approve' ? 'primary' : 'danger'}
       >
         <p>You are about to <strong>{confirmAction?.action} loan</strong>.</p>
-        <p><strong>Member:</strong> {confirmAction?.row?.full_name}</p>
-        <p><strong>Amount:</strong> {confirmAction?.row ? money(confirmAction.row.requested_amount) : ''}</p>
+        
+        {confirmAction?.row && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'var(--background-color)', padding: '16px', borderRadius: 'var(--radius)' }}>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '4px' }}>Member Name</span>
+              <strong>{confirmAction.row.full_name}</strong>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '4px' }}>Member Number</span>
+              <strong>{confirmAction.row.member_number || '-'}</strong>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '4px' }}>Requested Amount</span>
+              <strong>{money(confirmAction.row.requested_amount)}</strong>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '4px' }}>Confirmed Savings</span>
+              <strong>{money(confirmAction.row.total_savings || 0)}</strong>
+            </div>
+          </div>
+        )}
       </ConfirmModal>
     </div>
   );

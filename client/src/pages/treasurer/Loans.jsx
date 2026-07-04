@@ -6,7 +6,7 @@ import { Panel } from '../../components/Card.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import api from '../../api/client.js';
-import { money, shortDate } from '../../utils/format.js';
+import { money, shortDate, stripCommas, formatAmountInput } from '../../utils/format.js';
 
 export default function TreasurerLoans() {
   const [members, setMembers] = useState([]);
@@ -33,7 +33,8 @@ export default function TreasurerLoans() {
   }
 
   async function confirmIssue() {
-    await api.post('/loans', loanForm);
+    const cleanForm = { ...loanForm, principal: stripCommas(loanForm.principal) };
+    await api.post('/loans', cleanForm);
     setLoanForm({ member_id: '', principal: '', interest_rate: 10, installment_count: 4, due_date: '' });
     setShowConfirmIssue(false);
     load();
@@ -45,10 +46,20 @@ export default function TreasurerLoans() {
   }
 
   async function confirmPay() {
-    await api.post('/loans/repayments', repayment);
+    const cleanForm = { ...repayment, amount: stripCommas(repayment.amount) };
+    await api.post('/loans/repayments', cleanForm);
     setRepayment({ loan_id: '', amount: '' });
     setShowConfirmRepay(false);
     load();
+  }
+
+  function handleRepaymentLoanSelect(loanId) {
+    const loan = loans.find((l) => l.id === loanId);
+    if (loan) {
+      setRepayment({ loan_id: loanId, amount: formatAmountInput(String(loan.remaining_balance)) });
+    } else {
+      setRepayment({ loan_id: loanId, amount: '' });
+    }
   }
 
   const selectedMemberIssue = members.find((m) => m.id === loanForm.member_id);
@@ -60,7 +71,14 @@ export default function TreasurerLoans() {
       <Panel title="Issue loan">
         <form className="form-grid" onSubmit={requestIssue}>
           <SelectMember members={members} value={loanForm.member_id} onChange={(value) => setLoanForm({ ...loanForm, member_id: value })} />
-          <FormField label="Principal (UGX)" type="number" value={loanForm.principal} onChange={(e) => setLoanForm({ ...loanForm, principal: e.target.value })} required />
+          <FormField 
+            label="Principal (UGX)" 
+            type="text" 
+            inputMode="numeric"
+            value={loanForm.principal} 
+            onChange={(e) => setLoanForm({ ...loanForm, principal: formatAmountInput(e.target.value) })} 
+            required 
+          />
           <FormField label="Interest %" type="number" value={loanForm.interest_rate} onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })} />
           <FormField label="Installments" type="number" value={loanForm.installment_count} onChange={(e) => setLoanForm({ ...loanForm, installment_count: e.target.value })} />
           <FormField label="Due date" type="date" value={loanForm.due_date} onChange={(e) => setLoanForm({ ...loanForm, due_date: e.target.value })} required />
@@ -71,7 +89,7 @@ export default function TreasurerLoans() {
         <form className="form-grid" onSubmit={requestPay}>
           <label className="field">
             <span>Loan</span>
-            <select value={repayment.loan_id} onChange={(e) => setRepayment({ ...repayment, loan_id: e.target.value })} required>
+            <select value={repayment.loan_id} onChange={(e) => handleRepaymentLoanSelect(e.target.value)} required>
               <option value="">Select loan</option>
               {loans.filter((loan) => loan.status !== 'completed').map((loan) => (
                 <option key={loan.id} value={loan.id}>
@@ -80,7 +98,21 @@ export default function TreasurerLoans() {
               ))}
             </select>
           </label>
-          <FormField label="Amount (UGX)" type="number" value={repayment.amount} onChange={(e) => setRepayment({ ...repayment, amount: e.target.value })} required />
+          <FormField 
+            label="Amount (UGX)" 
+            type="text" 
+            inputMode="numeric"
+            value={repayment.amount} 
+            onChange={(e) => setRepayment({ ...repayment, amount: formatAmountInput(e.target.value) })} 
+            required 
+          />
+          {selectedLoan && (
+            <div style={{ gridColumn: '1 / -1', background: 'var(--background-color)', padding: '12px', borderRadius: 'var(--radius-sm)' }}>
+              <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                Next Due Date: <strong>{shortDate(selectedLoan.due_date)}</strong>
+              </p>
+            </div>
+          )}
           <Button>Record repayment</Button>
         </form>
       </Panel>
@@ -106,7 +138,7 @@ export default function TreasurerLoans() {
       >
         <p>You are about to <strong>issue loan</strong>.</p>
         <p><strong>Member:</strong> {selectedMemberIssue?.full_name} ({selectedMemberIssue?.member_number})</p>
-        <p><strong>Amount:</strong> {money(loanForm.principal)}</p>
+        <p><strong>Amount:</strong> {money(stripCommas(loanForm.principal) || 0)}</p>
       </ConfirmModal>
 
       <ConfirmModal
@@ -117,7 +149,7 @@ export default function TreasurerLoans() {
       >
         <p>You are about to <strong>record repayment</strong>.</p>
         <p><strong>Member:</strong> {selectedLoan?.full_name}</p>
-        <p><strong>Amount:</strong> {money(repayment.amount)}</p>
+        <p><strong>Amount:</strong> {money(stripCommas(repayment.amount) || 0)}</p>
       </ConfirmModal>
     </div>
   );

@@ -898,7 +898,55 @@ tr:last-child td {
 
 @media (max-width: 479px) {
   .table-wrap {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow-x: visible;
+  }
+
+  .responsive-table thead {
     display: none;
+  }
+
+  .responsive-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .responsive-table tbody tr {
+    display: grid;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+  }
+
+  .responsive-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    border: none;
+    font-size: 0.9rem;
+    text-align: right;
+  }
+
+  .responsive-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 500;
+    text-align: left;
+    margin-right: 12px;
+  }
+
+  .responsive-table .empty-cell::before {
+    display: none;
+  }
+  
+  .responsive-table .empty-cell {
+    justify-content: center;
+    padding: 24px;
   }
 
   .statement-cards {
