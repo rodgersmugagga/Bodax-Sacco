@@ -7,13 +7,16 @@ import { LoadingRetry } from '../../components/LoadingSpinner.jsx';
 import api from '../../api/client.js';
 import { money, shortDate, stripCommas, formatAmountInput } from '../../utils/format.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { requiredField, positiveAmount, notFutureDate, dateRequired, runValidation } from '../../utils/validate.js';
 import { useDelayedAsync } from '../../hooks/useDelayedAsync.js';
 
 export default function RecordSavings() {
   const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [apiError, setApiError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ member_id: '', amount: '', transaction_date: new Date().toISOString().slice(0, 10), notes: '' });
   const [showConfirm, setShowConfirm] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
@@ -27,15 +30,30 @@ export default function RecordSavings() {
     errorMessage: 'Failed to load members',
   });
 
+  function validate() {
+    return runValidation({
+      member_id: requiredField(form.member_id, 'Member'),
+      amount: positiveAmount(stripCommas(form.amount), 'Amount'),
+      transaction_date: dateRequired(form.transaction_date, 'Transaction date') || notFutureDate(form.transaction_date, 'Transaction date'),
+    });
+  }
+
   function requestSubmit(event) {
     event.preventDefault();
-    setError('');
+    setMessage('');
+    setApiError('');
+
+    const { errors: fieldErrors, isValid } = validate();
+    setErrors(fieldErrors);
+    if (!isValid) return;
+
     setShowConfirm(true);
   }
 
   async function confirmSubmit() {
     const cleanForm = { ...form, amount: stripCommas(form.amount) };
-    setError('');
+    setApiError('');
+    setSubmitting(true);
     try {
       await api.post('/savings', cleanForm);
       const selectedMember = members.find((m) => m.id === form.member_id);
@@ -48,17 +66,20 @@ export default function RecordSavings() {
       });
       setMessage('Savings recorded successfully');
       setForm((current) => ({ ...current, amount: '', notes: '', member_id: '' }));
+      setErrors({});
       setShowConfirm(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to record savings');
+      setApiError(err.response?.data?.message || 'Failed to record savings. Please try again.');
       setShowConfirm(false);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   function resetForm() {
     setReceiptData(null);
     setMessage('');
-    setError('');
+    setApiError('');
   }
 
   const selectedMember = members.find((m) => m.id === form.member_id);
@@ -103,9 +124,9 @@ export default function RecordSavings() {
         <Panel title="New savings transaction">
           <LoadingRetry loading={loading} error={loadError} onRetry={onRetry}>
             {message && <p className="success">{message}</p>}
-            {error && <p className="alert">{error}</p>}
-            <form className="form-grid" onSubmit={requestSubmit}>
-              <label className="field">
+            {apiError && <p className="alert">{apiError}</p>}
+            <form className="form-grid" onSubmit={requestSubmit} noValidate>
+              <label className={`field${errors.member_id ? ' select-error' : ''}`}>
                 <span>Member</span>
                 <select value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })} required>
                   <option value="">Select member</option>
@@ -115,6 +136,7 @@ export default function RecordSavings() {
                     </option>
                   ))}
                 </select>
+                {errors.member_id && <small className="field-error-msg">{errors.member_id}</small>}
               </label>
               <FormField
                 label="Amount Saved (UGX)"
@@ -122,11 +144,19 @@ export default function RecordSavings() {
                 inputMode="numeric"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: formatAmountInput(e.target.value) })}
+                error={errors.amount}
                 required
               />
-              <FormField label="Date" type="date" value={form.transaction_date} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} />
-              <FormField label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-              <Button>Record savings</Button>
+              <FormField
+                label="Date"
+                type="date"
+                max={new Date().toISOString().slice(0, 10)}
+                value={form.transaction_date}
+                onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
+                error={errors.transaction_date}
+              />
+              <FormField label="Notes" maxLength="200" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <Button disabled={submitting}>{submitting ? 'Recording...' : 'Record savings'}</Button>
             </form>
           </LoadingRetry>
         </Panel>
@@ -135,6 +165,7 @@ export default function RecordSavings() {
       <ConfirmModal
         open={showConfirm}
         title="Confirm Record Savings"
+        confirmLabel={submitting ? 'Recording...' : 'Confirm'}
         onConfirm={confirmSubmit}
         onCancel={() => setShowConfirm(false)}
       >
