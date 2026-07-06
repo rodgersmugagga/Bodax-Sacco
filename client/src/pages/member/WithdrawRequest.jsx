@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Button from '../../components/Button.jsx';
 import FormField from '../../components/FormField.jsx';
 import { Panel } from '../../components/Card.jsx';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import { LoadingRetry } from '../../components/LoadingSpinner.jsx';
 import api from '../../api/client.js';
 import { money, shortDate, stripCommas, formatAmountInput } from '../../utils/format.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useDelayedAsync } from '../../hooks/useDelayedAsync.js';
 
 export default function WithdrawRequest() {
   const { user } = useAuth();
@@ -17,18 +19,14 @@ export default function WithdrawRequest() {
   const [error, setError] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
-  useEffect(() => {
-    loadRequests();
-  }, []);
-
   async function loadRequests() {
-    try {
-      const { data } = await api.get('/withdrawals/requests');
-      setRequests(data);
-    } catch (err) {
-      console.error(err);
-    }
+    const { data } = await api.get('/withdrawals/requests');
+    setRequests(data);
   }
+
+  const { loading, error: loadError, onRetry } = useDelayedAsync(loadRequests, [], {
+    errorMessage: 'Failed to load withdrawal requests',
+  });
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -44,7 +42,7 @@ export default function WithdrawRequest() {
       await api.post('/withdrawals/requests', { amount: cleanAmount, reason: form.reason });
       setMessage('Withdrawal request submitted successfully. Awaiting treasurer approval.');
       setForm({ amount: '', reason: '' });
-      loadRequests();
+      onRetry();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit withdrawal request');
     }
@@ -53,7 +51,7 @@ export default function WithdrawRequest() {
   return (
     <div className="page-stack">
       <h1>Withdrawal Request</h1>
-      
+
       <Panel title="Request a withdrawal">
         {message && <p className="success">{message}</p>}
         {error && <p className="alert">{error}</p>}
@@ -76,19 +74,21 @@ export default function WithdrawRequest() {
       </Panel>
 
       <Panel title="My Withdrawal Requests">
-        {requests.length ? (
-          <DataTable
-            rows={requests}
-            columns={[
-              { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
-              { key: 'reason', label: 'Reason', render: (row) => row.reason || '-' },
-              { key: 'requested_at', label: 'Requested On', render: (row) => shortDate(row.requested_at) },
-              { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> }
-            ]}
-          />
-        ) : (
-          <p>No past withdrawal requests.</p>
-        )}
+        <LoadingRetry loading={loading} error={loadError} onRetry={onRetry}>
+          {requests.length ? (
+            <DataTable
+              rows={requests}
+              columns={[
+                { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
+                { key: 'reason', label: 'Reason', render: (row) => row.reason || '-' },
+                { key: 'requested_at', label: 'Requested On', render: (row) => shortDate(row.requested_at) },
+                { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+              ]}
+            />
+          ) : (
+            <p>No past withdrawal requests.</p>
+          )}
+        </LoadingRetry>
       </Panel>
 
       <ConfirmModal

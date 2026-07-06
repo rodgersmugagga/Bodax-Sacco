@@ -6,7 +6,7 @@ import { withdrawalRequestSchema, withdrawalReviewSchema } from '../validators/s
 
 const router = Router();
 
-router.get('/requests', authorize('TREASURER', 'CHAIRMAN'), controller.listWithdrawalRequests);
+router.get('/requests', authorize('MEMBER', 'TREASURER', 'CHAIRMAN'), controller.listWithdrawalRequests);
 router.post('/requests', authorize('MEMBER', 'TREASURER'), validate(withdrawalRequestSchema), controller.createWithdrawalRequest);
 router.patch('/requests/:id/review', authorize('TREASURER'), validate(withdrawalReviewSchema), controller.reviewWithdrawalRequest);
 

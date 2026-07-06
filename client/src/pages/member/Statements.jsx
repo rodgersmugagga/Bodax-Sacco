@@ -2,8 +2,10 @@ import { useState } from 'react';
 import Button from '../../components/Button.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import { Panel } from '../../components/Card.jsx';
+import { LoadingRetry } from '../../components/LoadingSpinner.jsx';
 import api from '../../api/client.js';
 import { money, shortDate } from '../../utils/format.js';
+import { useDelayedAsync } from '../../hooks/useDelayedAsync.js';
 
 function defaultFrom() {
   const date = new Date();
@@ -16,10 +18,19 @@ export default function MemberStatements() {
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState([]);
 
-  async function loadStatement(event) {
-    event?.preventDefault();
+  async function fetchStatement() {
     const { data } = await api.get(`/savings/statement?from=${from}&to=${to}`);
     setRows(data);
+  }
+
+  const { loading, error, onRetry } = useDelayedAsync(fetchStatement, [from, to], {
+    immediate: false,
+    errorMessage: 'Failed to load statement',
+  });
+
+  function loadStatement(event) {
+    event?.preventDefault();
+    onRetry();
   }
 
   function printStatement() {
@@ -40,15 +51,17 @@ export default function MemberStatements() {
         </form>
       </Panel>
       <Panel title="Statement">
-        <DataTable
-          rows={rows}
-          columns={[
-            { key: 'type', label: 'Type' },
-            { key: 'date', label: 'Date', render: (row) => shortDate(row.date) },
-            { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
-            { key: 'notes', label: 'Notes' },
-          ]}
-        />
+        <LoadingRetry loading={loading} error={error} onRetry={onRetry}>
+          <DataTable
+            rows={rows}
+            columns={[
+              { key: 'type', label: 'Type' },
+              { key: 'date', label: 'Date', render: (row) => shortDate(row.date) },
+              { key: 'amount', label: 'Amount', render: (row) => money(row.amount) },
+              { key: 'notes', label: 'Notes' },
+            ]}
+          />
+        </LoadingRetry>
       </Panel>
     </div>
   );

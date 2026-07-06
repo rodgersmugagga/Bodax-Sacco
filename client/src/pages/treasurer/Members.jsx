@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Button from '../../components/Button.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import FormField from '../../components/FormField.jsx';
 import { Panel } from '../../components/Card.jsx';
 import SearchBox from '../../components/SearchBox.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import { LoadingRetry } from '../../components/LoadingSpinner.jsx';
 import api from '../../api/client.js';
+import { useDelayedAsync } from '../../hooks/useDelayedAsync.js';
 
 export default function Members() {
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ member_number: '', full_name: '', phone_number: '', national_id: '', stage: 'Mbarara Central Stage', next_of_kin: '', password: '' });
   const [credentials, setCredentials] = useState({ member_id: '', password: '' });
 
@@ -19,24 +22,36 @@ export default function Members() {
     setMembers(data.data);
   }
 
-  useEffect(() => {
-    load();
-  }, [search]);
+  const { loading, error: loadError, onRetry } = useDelayedAsync(load, [search], {
+    errorMessage: 'Failed to load members',
+  });
 
   async function submit(event) {
     event.preventDefault();
-    await api.post('/members', form);
-    setMessage('Member saved. They can log in using their phone number.');
-    setForm({ ...form, member_number: '', full_name: '', phone_number: '', national_id: '', next_of_kin: '', password: '' });
-    load();
+    setMessage('');
+    setError('');
+    try {
+      await api.post('/members', form);
+      setMessage('Member saved. They can log in using their phone number.');
+      setForm({ ...form, member_number: '', full_name: '', phone_number: '', national_id: '', next_of_kin: '', password: '' });
+      onRetry();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save member');
+    }
   }
 
   async function saveCredentials(event) {
     event.preventDefault();
-    await api.patch(`/members/${credentials.member_id}/credentials`, { password: credentials.password });
-    setMessage('Member login password updated.');
-    setCredentials({ member_id: '', password: '' });
-    load();
+    setMessage('');
+    setError('');
+    try {
+      await api.patch(`/members/${credentials.member_id}/credentials`, { password: credentials.password });
+      setMessage('Member login password updated.');
+      setCredentials({ member_id: '', password: '' });
+      onRetry();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update member password');
+    }
   }
 
   function update(key, value) {
@@ -46,8 +61,9 @@ export default function Members() {
   return (
     <div className="page-stack">
       <h1>Members</h1>
+      {message && <p className="success">{message}</p>}
+      {error && <p className="alert">{error}</p>}
       <Panel title="Register member">
-        {message && <p className="success">{message}</p>}
         <form className="form-grid" onSubmit={submit}>
           <FormField label="Member number" value={form.member_number} onChange={(e) => update('member_number', e.target.value)} required />
           <FormField label="Full name" value={form.full_name} onChange={(e) => update('full_name', e.target.value)} required />
@@ -84,16 +100,18 @@ export default function Members() {
         </form>
       </Panel>
       <Panel title="Search members" action={<SearchBox value={search} onChange={setSearch} placeholder="Name, phone, number" />}>
-        <DataTable
-          rows={members}
-          columns={[
-            { key: 'member_number', label: 'Number' },
-            { key: 'full_name', label: 'Name' },
-            { key: 'phone_number', label: 'Phone' },
-            { key: 'stage', label: 'Stage' },
-            { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
-          ]}
-        />
+        <LoadingRetry loading={loading} error={loadError} onRetry={onRetry}>
+          <DataTable
+            rows={members}
+            columns={[
+              { key: 'member_number', label: 'Number' },
+              { key: 'full_name', label: 'Name' },
+              { key: 'phone_number', label: 'Phone' },
+              { key: 'stage', label: 'Stage' },
+              { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+            ]}
+          />
+        </LoadingRetry>
       </Panel>
     </div>
   );

@@ -81,7 +81,7 @@ export const loanSchema = z.object({
     member_id: uuid,
     principal: money,
     interest_rate: z.coerce.number().min(0, 'Interest rate cannot be negative').max(100, 'Interest rate cannot exceed 100%').optional(),
-    installment_count: z.coerce.number().int().positive('Installment count must be a positive whole number').optional(),
+    installment_count: z.coerce.number().int().positive('Number of payments must be a positive whole number').optional(),
     issued_date: date.optional(),
     due_date: date,
     notes: z.string().optional(),
@@ -110,14 +110,14 @@ export const loanRequestSchema = z.object({
     member_id: uuid.optional(),
     requested_amount: money,
     purpose: z.string().optional(),
-    installment_count: z.coerce.number().int().positive('Installment count must be a positive whole number').optional(),
+    installment_count: z.coerce.number().int().positive('Number of payments must be a positive whole number').optional(),
     due_date: date,
   }),
 });
 
 export const withdrawalRequestSchema = z.object({
   body: z.object({
-    member_id: uuid,
+    member_id: uuid.optional(),
     amount: money,
     reason: z.string().optional(),
   }),

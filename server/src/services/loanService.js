@@ -24,15 +24,22 @@ export async function refreshOverdueLoans() {
   );
 }
 
-export async function checkLoanEligibility(memberId, requestedAmount = null) {
+export async function checkLoanEligibility(memberId, requestedAmount = null, options = {}) {
   const memberResult = await query('SELECT status FROM members WHERE id = $1', [memberId]);
   const member = memberResult.rows[0];
   if (!member) throw new AppError('Member not found', 404);
 
   const savingsResult = await query(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM savings_transactions
-     WHERE member_id = $1 AND confirmed = true`,
+    `SELECT GREATEST(
+       COALESCE((
+         SELECT SUM(amount) FROM savings_transactions
+         WHERE member_id = $1 AND confirmed = true
+       ), 0) - COALESCE((
+         SELECT SUM(amount) FROM withdrawals
+         WHERE member_id = $1
+       ), 0),
+       0
+     ) AS total`,
     [memberId],
   );
   const totalSavings = Number(savingsResult.rows[0].total);
@@ -60,10 +67,13 @@ export async function checkLoanEligibility(memberId, requestedAmount = null) {
     };
   }
 
-  const pendingRequest = await query(
-    `SELECT id FROM loan_requests WHERE member_id = $1 AND status = 'pending'`,
-    [memberId],
-  );
+  const pendingParams = [memberId];
+  let pendingSql = `SELECT id FROM loan_requests WHERE member_id = $1 AND status = 'pending'`;
+  if (options.excludeRequestId) {
+    pendingParams.push(options.excludeRequestId);
+    pendingSql += ` AND id <> $${pendingParams.length}`;
+  }
+  const pendingRequest = await query(pendingSql, pendingParams);
   if (pendingRequest.rows.length) {
     return {
       eligible: false,
@@ -87,7 +97,7 @@ export async function checkLoanEligibility(memberId, requestedAmount = null) {
   if (requestedAmount !== null && Number(requestedAmount) > maxEligible) {
     return {
       eligible: false,
-      reason: `Requested amount exceeds your maximum eligible amount (${maxEligible.toLocaleString()} UGX — ${LOAN_SAVINGS_MULTIPLIER}× your savings)`,
+      reason: `Requested amount exceeds your maximum eligible amount (${maxEligible.toLocaleString()} UGX - ${LOAN_SAVINGS_MULTIPLIER}x your confirmed savings)`,
       max_eligible_amount: maxEligible,
       total_savings: totalSavings,
       savings_multiplier: LOAN_SAVINGS_MULTIPLIER,
@@ -96,7 +106,7 @@ export async function checkLoanEligibility(memberId, requestedAmount = null) {
 
   return {
     eligible: true,
-    reason: `Eligible to borrow up to ${maxEligible.toLocaleString()} UGX (${LOAN_SAVINGS_MULTIPLIER}× your savings)`,
+    reason: `Eligible to borrow up to ${maxEligible.toLocaleString()} UGX (${LOAN_SAVINGS_MULTIPLIER}x your confirmed savings)`,
     max_eligible_amount: maxEligible,
     total_savings: totalSavings,
     savings_multiplier: LOAN_SAVINGS_MULTIPLIER,
@@ -105,6 +115,10 @@ export async function checkLoanEligibility(memberId, requestedAmount = null) {
 
 export async function createLoanRequest(payload) {
   const eligibility = await checkLoanEligibility(payload.member_id, payload.requested_amount);
+  if (!eligibility.eligible) {
+    throw new AppError(eligibility.reason, 400);
+  }
+
   const { rows } = await query(
     `INSERT INTO loan_requests
       (member_id, requested_amount, purpose, installment_count, due_date,
@@ -139,9 +153,14 @@ export async function listLoanRequests({ status, memberId } = {}) {
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const { rows } = await query(
     `SELECT lr.*, m.full_name, m.member_number,
-            COALESCE(
-              (SELECT SUM(s.amount) FROM savings_transactions s
-               WHERE s.member_id = lr.member_id AND s.confirmed = true),
+            GREATEST(
+              COALESCE((
+                SELECT SUM(s.amount) FROM savings_transactions s
+                WHERE s.member_id = lr.member_id AND s.confirmed = true
+              ), 0) - COALESCE((
+                SELECT SUM(w.amount) FROM withdrawals w
+                WHERE w.member_id = lr.member_id
+              ), 0),
               0
             ) AS total_savings
      FROM loan_requests lr
@@ -165,7 +184,7 @@ export async function reviewLoanRequest(id, action, reviewedBy, notes = null) {
         throw new AppError('Cannot approve an ineligible loan request', 400);
       }
 
-      const eligibility = await checkLoanEligibility(request.member_id, request.requested_amount);
+      const eligibility = await checkLoanEligibility(request.member_id, request.requested_amount, { excludeRequestId: id });
       if (!eligibility.eligible) {
         throw new AppError(eligibility.reason, 400);
       }

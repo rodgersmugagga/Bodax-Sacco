@@ -3,6 +3,7 @@ import { monthStart, weekStart } from '../utils/dates.js';
 import { refreshOverdueLoans } from './loanService.js';
 
 export async function treasurerDashboard() {
+  await refreshOverdueLoans();
   const today = new Date();
   const { rows } = await query(
     `SELECT
@@ -19,11 +20,12 @@ export async function treasurerDashboard() {
 }
 
 export async function chairmanDashboard() {
+  await refreshOverdueLoans();
   const today = new Date();
   const { rows } = await query(
     `SELECT
        (SELECT COUNT(*)::int FROM members) AS members,
-       (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE confirmed = true) AS total_savings,
+       (SELECT GREATEST(COALESCE((SELECT SUM(amount) FROM savings_transactions WHERE confirmed = true), 0) - COALESCE((SELECT SUM(amount) FROM withdrawals), 0), 0)) AS total_savings,
        (SELECT COUNT(*)::int FROM loans WHERE status = 'active') AS active_loans,
        (SELECT COALESCE(SUM(balance), 0)
         FROM (
@@ -63,7 +65,7 @@ export async function memberDashboard(memberId) {
       WHERE l.member_id = $1
     )
     SELECT
-       (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE member_id = $1 AND confirmed = true) AS total_savings,
+       (SELECT GREATEST(COALESCE((SELECT SUM(amount) FROM savings_transactions WHERE member_id = $1 AND confirmed = true), 0) - COALESCE((SELECT SUM(amount) FROM withdrawals WHERE member_id = $1), 0), 0)) AS total_savings,
        (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE member_id = $1 AND transaction_date >= $2 AND confirmed = true) AS week_savings,
        (SELECT COALESCE(SUM(amount), 0) FROM savings_transactions WHERE member_id = $1 AND transaction_date >= $3 AND confirmed = true) AS month_savings,
        (SELECT COALESCE(SUM(remaining_balance), 0) FROM member_loans WHERE status IN ('active', 'overdue')) AS active_loan_balance,
@@ -116,10 +118,18 @@ export async function memberDashboard(memberId) {
 
 export async function topSavers() {
   const { rows } = await query(
-    `SELECT m.full_name, m.member_number, COALESCE(SUM(s.amount), 0) AS total
+    `SELECT m.full_name, m.member_number,
+            GREATEST(
+              COALESCE((
+                SELECT SUM(s.amount) FROM savings_transactions s
+                WHERE s.member_id = m.id AND s.confirmed = true
+              ), 0) - COALESCE((
+                SELECT SUM(w.amount) FROM withdrawals w
+                WHERE w.member_id = m.id
+              ), 0),
+              0
+            ) AS total
      FROM members m
-     LEFT JOIN savings_transactions s ON s.member_id = m.id AND s.confirmed = true
-     GROUP BY m.id
      ORDER BY total DESC
      LIMIT 10`,
   );
@@ -127,15 +137,18 @@ export async function topSavers() {
 }
 
 export async function defaulters() {
+  await refreshOverdueLoans();
   const { rows } = await query(
     `SELECT m.full_name, m.member_number, l.due_date,
+            CURRENT_DATE - l.due_date::date AS days_overdue,
             GREATEST(l.total_payable - COALESCE(SUM(r.amount), 0), 0) AS balance
      FROM loans l
      JOIN members m ON m.id = l.member_id
      LEFT JOIN loan_repayments r ON r.loan_id = l.id
-     WHERE l.status = 'overdue'
-     GROUP BY l.id, m.full_name, m.member_number
-     ORDER BY balance DESC`,
+     WHERE l.status = 'overdue' OR (l.status = 'active' AND l.due_date < CURRENT_DATE)
+     GROUP BY l.id, m.full_name, m.member_number, l.due_date
+     HAVING GREATEST(l.total_payable - COALESCE(SUM(r.amount), 0), 0) > 0
+     ORDER BY days_overdue DESC`,
   );
   return rows;
 }
@@ -172,6 +185,7 @@ export async function expenditureSummary() {
 }
 
 export async function overdueLoans() {
+  await refreshOverdueLoans();
   const { rows } = await query(
     `SELECT
        m.full_name,

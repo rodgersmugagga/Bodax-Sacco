@@ -1,7 +1,29 @@
 import { query, transaction } from '../config/db.js';
 import { AppError } from '../utils/AppError.js';
 
+async function memberSavingsBalance(memberId, runner = query) {
+  const { rows } = await runner(
+    `SELECT GREATEST(
+       COALESCE((
+         SELECT SUM(amount) FROM savings_transactions
+         WHERE member_id = $1 AND confirmed = true
+       ), 0) - COALESCE((
+         SELECT SUM(amount) FROM withdrawals
+         WHERE member_id = $1
+       ), 0),
+       0
+     ) AS balance`,
+    [memberId],
+  );
+  return Number(rows[0]?.balance || 0);
+}
+
 export async function createWithdrawalRequest(payload) {
+  const balance = await memberSavingsBalance(payload.member_id);
+  if (Number(payload.amount) > balance) {
+    throw new AppError(`Withdrawal amount exceeds available savings balance (${balance.toLocaleString()} UGX)`, 400);
+  }
+
   const { rows } = await query(
     `INSERT INTO withdrawal_requests (member_id, amount, reason)
      VALUES ($1, $2, $3)
@@ -11,12 +33,31 @@ export async function createWithdrawalRequest(payload) {
   return rows[0];
 }
 
-export async function listWithdrawalRequests(status) {
+export async function listWithdrawalRequests({ status, memberId } = {}) {
   const params = [];
-  const where = status ? 'WHERE wr.status = $1' : '';
-  if (status) params.push(status);
+  const filters = [];
+  if (status) {
+    params.push(status);
+    filters.push(`wr.status = $${params.length}`);
+  }
+  if (memberId) {
+    params.push(memberId);
+    filters.push(`wr.member_id = $${params.length}`);
+  }
+  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
   const { rows } = await query(
-    `SELECT wr.*, m.full_name, m.member_number
+    `SELECT wr.*, m.full_name, m.member_number,
+            GREATEST(
+              COALESCE((
+                SELECT SUM(s.amount) FROM savings_transactions s
+                WHERE s.member_id = wr.member_id AND s.confirmed = true
+              ), 0) - COALESCE((
+                SELECT SUM(w.amount) FROM withdrawals w
+                WHERE w.member_id = wr.member_id
+              ), 0),
+              0
+            ) AS available_savings
      FROM withdrawal_requests wr
      JOIN members m ON m.id = wr.member_id
      ${where}
@@ -34,6 +75,13 @@ export async function reviewWithdrawalRequest(id, action, reviewedBy) {
     if (request.status !== 'pending') throw new AppError('Request has already been reviewed', 409);
 
     const status = action === 'approve' ? 'approved' : 'rejected';
+    if (status === 'approved') {
+      const balance = await memberSavingsBalance(request.member_id, client.query.bind(client));
+      if (Number(request.amount) > balance) {
+        throw new AppError(`Withdrawal amount exceeds available savings balance (${balance.toLocaleString()} UGX)`, 400);
+      }
+    }
+
     const reviewed = await client.query(
       `UPDATE withdrawal_requests
        SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW()
