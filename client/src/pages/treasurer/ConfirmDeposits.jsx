@@ -4,7 +4,7 @@ import FormField from '../../components/FormField.jsx';
 import { Panel } from '../../components/Card.jsx';
 import { LoadingRetry } from '../../components/LoadingSpinner.jsx';
 import api from '../../api/client.js';
-import { formatAmountInput, stripCommas } from '../../utils/format.js';
+import { formatAmountInput, stripCommas, money } from '../../utils/format.js';
 import { requiredField, positiveAmount, notFutureDate, dateRequired, runValidation } from '../../utils/validate.js';
 import { useDelayedAsync } from '../../hooks/useDelayedAsync.js';
 
@@ -15,6 +15,7 @@ export default function ConfirmDeposits() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [receiptConfirmed, setReceiptConfirmed] = useState(true);
+  const [selectedMemberSummary, setSelectedMemberSummary] = useState(null);
   const [form, setForm] = useState({
     member_id: '',
     amount: '',
@@ -30,6 +31,26 @@ export default function ConfirmDeposits() {
   const { loading, error: loadError, onRetry } = useDelayedAsync(loadMembers, [], {
     errorMessage: 'Failed to load members',
   });
+
+  async function loadMemberSummary(memberId) {
+    if (!memberId) {
+      setSelectedMemberSummary(null);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/savings/members/${memberId}/summary`);
+      setSelectedMemberSummary(data);
+    } catch {
+      setSelectedMemberSummary(null);
+    }
+  }
+
+  function handleMemberChange(e) {
+    const memberId = e.target.value;
+    setForm((current) => ({ ...current, member_id: memberId }));
+    if (memberId) loadMemberSummary(memberId);
+    else setSelectedMemberSummary(null);
+  }
 
   function validate() {
     return runValidation({
@@ -59,6 +80,7 @@ export default function ConfirmDeposits() {
         notes: '',
       });
       setErrors({});
+      setSelectedMemberSummary(null);
     } catch (err) {
       setApiError(err.response?.data?.message || 'Failed to confirm deposit. Please try again.');
     } finally {
@@ -78,7 +100,7 @@ export default function ConfirmDeposits() {
               <span>Member</span>
               <select
                 value={form.member_id}
-                onChange={(e) => setForm({ ...form, member_id: e.target.value })}
+                onChange={handleMemberChange}
                 required
               >
                 <option value="">Select member</option>
@@ -88,6 +110,9 @@ export default function ConfirmDeposits() {
                   </option>
                 ))}
               </select>
+              {selectedMemberSummary && (
+                <small>Savings balance: <strong>{money(selectedMemberSummary.total_savings)}</strong></small>
+              )}
               {errors.member_id && <small className="field-error-msg">{errors.member_id}</small>}
             </label>
             <FormField
